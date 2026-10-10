@@ -10,6 +10,7 @@
   grammar and queries, a git submodule; clone with `--recurse-submodules` or
   run `git submodule update --init`)
 * Build output: `build/` (gitignored)
+* Install script: `install.sh` (documented in `docs/reference/installation.md`)
 
 ## Build Commands
 * Create build directory: `mkdir -p build`
