@@ -34,17 +34,7 @@ tree, so it works while the document has syntax errors.
 The server uses UTF-8 positions if the client offers them in
 `general.positionEncodings`, and UTF-16 otherwise.
 
-## Neovim
+## Editors
 
-With Neovim 0.11 or later and the `dottr` filetype for `*.dotfile`:
-
-```lua
-vim.filetype.add({ extension = { dotfile = "dottr" } })
-
-vim.lsp.config("dottr", {
-  cmd = { "dottr-lsp" },
-  filetypes = { "dottr" },
-  root_markers = { "packages.dotfile", ".git" },
-})
-vim.lsp.enable("dottr")
-```
+The setup for Neovim, with the tree-sitter grammar, is described in
+`docs/reference/neovim.md`.

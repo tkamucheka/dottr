@@ -9,7 +9,7 @@
 * Tests and fixtures: `test/`
 * Editor support: `utils/` (`utils/tree-sitter-dottr/` is the tree-sitter
   grammar and queries, a git submodule; clone with `--recurse-submodules` or
-  run `git submodule update --init`)
+  run `git submodule update --init`); Neovim setup in `docs/reference/neovim.md`
 * Build output: `build/` (gitignored)
 * Install script: `install.sh` (documented in `docs/reference/installation.md`)
 
