@@ -7,9 +7,11 @@
   frontend), `dottr-format` (formatter), `dottr-lsp` (language server), and
   `dottr-fuzzer` (libFuzzer harness)
 * Tests and fixtures: `test/`
-* Editor support: `utils/` (`utils/tree-sitter-dottr/` is the tree-sitter
-  grammar and queries, a git submodule; clone with `--recurse-submodules` or
-  run `git submodule update --init`); Neovim setup in `docs/reference/neovim.md`
+* Editor support: `utils/`, as git submodules (clone with
+  `--recurse-submodules` or run `git submodule update --init`):
+  `utils/tree-sitter-dottr/` is the tree-sitter grammar and queries, and
+  `utils/vscode-dottr/` the VS Code extension; Neovim setup in
+  `docs/reference/neovim.md`
 * Build output: `build/` (gitignored)
 * Install script: `install.sh` (documented in `docs/reference/installation.md`)
 

@@ -1,3 +1,6 @@
 [submodule "utils/tree-sitter-dottr"]
 	path = utils/tree-sitter-dottr
 	url = git@github.com:tkamucheka/tree-sitter-dottr.git
+[submodule "utils/vscode-dottr"]
+	path = utils/vscode-dottr
+	url = git@github.com:tkamucheka/vscode-dottr.git
