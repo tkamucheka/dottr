@@ -43,8 +43,11 @@
   the grammar, in `docs/reference/`.
 * Keep README files short and concise: what the project is, how to install
   and use it, and links to the documents in `docs/reference/` for everything
-  else. A README does not repeat reference documentation. A repository
-  outside this one, such as the tree-sitter grammar, links to them by URL.
+  else. A README does not repeat reference documentation.
+* A repository used on its own, such as the tree-sitter grammar submodule, is
+  self-contained: its README leads with generic installation and
+  configuration sections, as the README of an editor plugin does, and does
+  not depend on documentation in this repository.
 * All documentation must be technical/academic.
 * Never use emojis in documentation, comments, or commit messages.
 

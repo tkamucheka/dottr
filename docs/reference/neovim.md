@@ -1,115 +1,88 @@
 # Neovim
 
-This document describes the Neovim setup for dottr manifests. It has two
-independent parts:
+Neovim support for dottr manifests has two parts:
 
-* The tree-sitter grammar in `utils/tree-sitter-dottr` provides highlighting,
-  shell highlighting inside `shell` blocks, folds, indentation, and text
+* The tree-sitter grammar,
+  [tree-sitter-dottr](https://github.com/tkamucheka/tree-sitter-dottr), for
+  highlighting, highlighting of shell scripts, folds, indentation, and text
   objects.
-* The language server `dottr-lsp` provides diagnostics, navigation, rename,
+* The language server, `dottr-lsp`, for diagnostics, navigation, rename,
   hover, completion, and formatting (`docs/reference/lsp.md`).
-
-The snippets below are written for `init.lua` and `ftplugin/`; they can be
-moved into a plugin manager's configuration unchanged.
 
 ## Requirements
 
-| Requirement | Used by |
-|-------------|---------|
-| Neovim 0.11 or later | `vim.lsp.config` and `vim.lsp.enable` |
-| nvim-treesitter, `main` branch | Installing the grammar; indentation |
-| The tree-sitter CLI and a C compiler | Building the grammar (`tree-sitter build`) |
-| The `bash` and `zsh` tree-sitter parsers | Shell highlighting: `:TSInstall bash zsh` |
-| `dottr-lsp` on `PATH` | The language server (`docs/reference/installation.md`) |
-| A dottr checkout with its submodule | The grammar source: `git submodule update --init` |
+* Neovim 0.12 or later
+* [nvim-treesitter](https://github.com/nvim-treesitter/nvim-treesitter), `main`
+  branch, with its requirements (`curl`, `tar`, the tree-sitter CLI, and a C
+  compiler)
+* `dottr-lsp` on `PATH` (`docs/reference/installation.md`)
 
 ## 1. Filetype
 
-Manifests use the extension `.dotfile`. Map it to the filetype `dottr`, which
-is also the name of the tree-sitter language:
+Manifests use the extension `.dotfile`:
 
 ```lua
 vim.filetype.add({ extension = { dotfile = "dottr" } })
 ```
 
-Settings for the filetype go in `ftplugin/dottr.lua`:
+Set the comment string in `ftplugin/dottr.lua`:
 
 ```lua
--- Comments, for gc and gcc.
 vim.bo.commentstring = "# %s"
-
--- Tree-sitter highlighting, folds, and indentation (Section 2).
-if pcall(vim.treesitter.start) then
-  vim.wo[0][0].foldexpr = "v:lua.vim.treesitter.foldexpr()"
-  vim.wo[0][0].foldmethod = "expr"
-  vim.bo.indentexpr = "v:lua.require'nvim-treesitter'.indentexpr()"
-end
 ```
-
-`vim.treesitter.start` fails until the grammar is installed; the `pcall`
-leaves the buffer without tree-sitter features in that case.
 
 ## 2. Tree-sitter Grammar
 
-Register the grammar with nvim-treesitter in a `User TSUpdate` autocommand,
-pointing at the checkout:
+Install the grammar with
+[gardener.nvim](https://github.com/tkamucheka/gardener.nvim), here with
+[lazy.nvim](https://github.com/folke/lazy.nvim):
 
 ```lua
-vim.api.nvim_create_autocmd("User", {
-  pattern = "TSUpdate",
-  callback = function()
-    require("nvim-treesitter.parsers").dottr = {
-      install_info = {
-        path = "~/projects/dottr/utils/tree-sitter-dottr",
-        queries = "queries",
+{
+  "tkamucheka/gardener.nvim",
+  dependencies = { "nvim-treesitter/nvim-treesitter" },
+  lazy = false,
+  opts = {
+    ensure_installed = { "bash", "zsh" },
+    custom_parsers = {
+      dottr = {
+        install_info = {
+          url = "https://github.com/tkamucheka/tree-sitter-dottr",
+          queries = "queries",
+        },
+        filetypes = { "dottr" },
       },
-    }
-  end,
-})
+    },
+    manage_folds = true,
+    manage_indent = true,
+  },
+}
 ```
 
-Then install it, with the shell parsers:
+gardener installs the parser when a manifest is first opened and starts
+highlighting, folds, and indentation. The `bash` and `zsh` parsers highlight
+the scripts of `shell` blocks.
 
-```
-:TSInstall dottr bash zsh
-```
-
-The grammar repository contains the generated parser, so no generation step
-is needed. The queries are linked from the checkout rather than copied:
-changes to them apply when a buffer is reopened. Changes to the grammar
-itself require a rebuild with `:TSInstall! dottr`.
-
-The grammar provides the following queries:
-
-| Query | Effect |
-|-------|--------|
-| `highlights.scm` | Highlighting with Neovim's standard capture names. |
-| `injections.scm` | The text of a `shell` block is highlighted as `zsh` for ` ```zsh `, and as `bash` otherwise. The indentation margin of the block is excluded, so heredoc terminators indented with the block are recognized. |
-| `folds.scm` | Folds for units, `apply` constructs, `else` branches, and `shell` blocks. |
-| `indents.scm` | Indentation for nvim-treesitter's `indentexpr`; text in `shell` blocks keeps the indentation of the previous line. |
-| `textobjects.scm` | Text objects (Section 4). |
-| `locals.scm`, `tags.scm` | Scopes, definitions, and references. |
+Installation without gardener and the text objects of the grammar are
+described in the
+[tree-sitter-dottr README](https://github.com/tkamucheka/tree-sitter-dottr#readme).
 
 ## 3. Language Server
 
 ```lua
-vim.lsp.config("dottr_lsp", {
+vim.lsp.config("dottr", {
   cmd = { "dottr-lsp" },
   filetypes = { "dottr" },
   root_markers = { "packages.dotfile", ".git" },
 })
-vim.lsp.enable("dottr_lsp")
+vim.lsp.enable("dottr")
 ```
 
 Neovim's default LSP mappings then apply in manifests, among them `K`
 (hover), `grn` (rename), `grr` (references), `gO` (document symbols), and
-`CTRL-]` (definition). Completion is available through `vim.lsp.completion`
-or a completion plugin.
+`CTRL-]` (definition).
 
-### Format on Save
-
-The server formats as `dottr-format` does. To format on every write, add an
-`on_attach` function to the configuration above:
+To format on every write, add to the configuration:
 
 ```lua
 on_attach = function(client, bufnr)
@@ -123,47 +96,13 @@ on_attach = function(client, bufnr)
 end,
 ```
 
-A manifest with a syntax error is written unformatted. Formatting through the
-server is sufficient; a separate formatter source for `dottr-format` in
-none-ls or conform.nvim would format the buffer a second time.
+A manifest with a syntax error is written unformatted. `dottr-format` can
+serve instead as the formatter of a plugin such as conform.nvim; configure
+only one of the two, or each write is formatted twice.
 
-## 4. Text Objects
+## 4. Checking the Setup
 
-`textobjects.scm` uses the capture names of nvim-treesitter-textobjects:
-
-| Capture | Outer | Inner |
-|---------|-------|-------|
-| `@function` | A unit | The statements of a block unit |
-| `@block` | An `apply` construct or a `shell` block | Its body; for a `shell` block, the script |
-| `@conditional` | An `apply_if` or `apply_unless` construct | The statements of a branch |
-| `@assignment` | A `local` statement | The value (`@assignment.rhs` likewise; `@assignment.lhs` is the name) |
-| `@parameter` | A unit name in `needs` | The same |
-| `@statement`, `@comment`, `@string` | A statement, comment, or string | |
-
-With mini.ai, map them to keys:
-
-```lua
-local ai = require("mini.ai")
-local ts = ai.gen_spec.treesitter
-ai.setup({
-  custom_textobjects = {
-    F = ts({ a = "@function.outer", i = "@function.inner" }),
-    o = ts({
-      a = { "@block.outer", "@conditional.outer" },
-      i = { "@block.inner", "@conditional.inner" },
-    }),
-    ["="] = ts({ a = "@assignment.outer", i = "@assignment.inner" }),
-  },
-})
-```
-
-`vaF` then selects a unit, `cio` changes the script of a `shell` block, and
-`ci=` changes the value of a `local`. The keys apply to every filetype with a
-`textobjects` query.
-
-## 5. Checking the Setup
-
-* `:checkhealth vim.lsp` lists the attached `dottr_lsp` client.
+* `:checkhealth vim.lsp` lists the attached `dottr` client.
 * `:InspectTree` shows the syntax tree of the buffer.
 * `:Inspect` on a word of a shell script lists `bash` or `zsh` captures,
-  which confirms the injection.
+  which confirms that shell scripts are highlighted.

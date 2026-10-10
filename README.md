@@ -51,8 +51,8 @@ dottr-format -w FILE...  # format manifests
 * [Grammar](docs/reference/grammar.md): the manifest language
 * [Formatting](docs/reference/formatting.md): `dottr-format` and `dottr fmt`
 * [Language server](docs/reference/lsp.md): `dottr-lsp`
-* [Neovim](docs/reference/neovim.md): highlighting, the language server, and
-  text objects
+* [Neovim](docs/reference/neovim.md): the tree-sitter grammar and the
+  language server
 
 The tree-sitter grammar is in the submodule `utils/tree-sitter-dottr`; clone
 with `--recurse-submodules`.
