@@ -3,14 +3,17 @@
 ## Layout
 * Public headers: `include/dottr/` (include as `"dottr/<name>.h"`)
 * Library code: `lib/`
-* Program entry points: `tools/` (`tools/dottr.c` is the frontend;
-  `tools/dottr-fuzzer/` is the libFuzzer harness)
+* Programs: `tools/<program>/`, one directory each (`tools/dottr/` is the
+  frontend; `tools/dottr-fuzzer/` is the libFuzzer harness)
 * Tests and fixtures: `test/`
+* Editor support: `utils/` (`utils/tree-sitter-dottr/` is the tree-sitter
+  grammar and queries, a git submodule; clone with `--recurse-submodules` or
+  run `git submodule update --init`)
 * Build output: `build/` (gitignored)
 
 ## Build Commands
 * Create build directory: `mkdir -p build`
-* Build tool: `cc -std=c11 -Wall -Wextra -Iinclude lib/*.c tools/dottr.c -o build/dottr`
+* Build tool: `cc -std=c11 -Wall -Wextra -Iinclude lib/*.c tools/dottr/dottr.c -o build/dottr`
 * Build tests: `cc -std=c11 -Wall -Wextra -Iinclude lib/*.c test/*.c -o build/dottr-test`
 * Run tests (from the repository root, after building the tool): `build/dottr-test`
 * Regenerate expected fixture output: `build/dottr-test --update` (review the
@@ -20,18 +23,27 @@
   (new inputs go to `build/fuzz-corpus`, crash reproducers to `build/`;
   reproduce a crash with `build/dottr-fuzzer FILE`)
 * Clean build directory: `rm -rf build`
+* Tree-sitter grammar (requires the tree-sitter CLI; run in
+  `utils/tree-sitter-dottr`): regenerate the parser with
+  `tree-sitter generate` after editing `grammar.js` and commit the
+  regenerated `src/`; run the corpus and highlight tests with
+  `tree-sitter test`. Commit grammar changes in the submodule first, then
+  commit the updated submodule reference in this repository.
 
 ## Code Style and Architecture
 * Language Standard: C11
 * Naming Convention: camelCase for variables and functions, PascalCase for types
 
 ## Implementation Guidelines
+* Put reference documentation of the implemented language and tools, such as
+  the grammar, in `docs/reference/`.
 * All documentation must be technical/academic.
 * Never use emojis in documentation, comments, or commit messages.
 
 ## Repository Hygiene
 * Do not create temporary files in the project tree. Use the system temp
   directory (or an agent scratch directory) and clean up afterwards.
-* Do not create markdown files
-  unless explicitly asked. No summaries, notes, reports, or changelogs written
-  as standalone files; report results in the conversation instead.
+* Do not create markdown files outside
+  `docs/reference/` unless explicitly asked. No summaries, notes,
+  reports, or changelogs written as standalone files; report results in the
+  conversation instead.

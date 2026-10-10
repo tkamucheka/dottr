@@ -1,0 +1,3 @@
+[submodule "utils/tree-sitter-dottr"]
+	path = utils/tree-sitter-dottr
+	url = git@github.com:tkamucheka/tree-sitter-dottr.git
