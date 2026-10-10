@@ -1,0 +1,1 @@
+test/cases/sema-child-not-resolvable.dotfile:7:9: error: unit `git` is not declared; declare it at top level, for example `pkg git`

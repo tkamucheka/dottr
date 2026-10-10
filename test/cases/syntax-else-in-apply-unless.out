@@ -1,0 +1,1 @@
+test/cases/syntax-else-in-apply-unless.dotfile:7:3: error: `else` is allowed only in `apply_if`, not in `apply_unless`

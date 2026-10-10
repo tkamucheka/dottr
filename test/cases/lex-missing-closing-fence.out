@@ -1,0 +1,1 @@
+test/cases/lex-missing-closing-fence.dotfile:8:1: error: line does not begin with the indentation of the opening fence on line 6 (is the closing ``` missing?)

@@ -1,0 +1,1 @@
+test/cases/syntax-reserved-variable-name.dotfile:4:9: error: expected variable name after `local`, found reserved word `directory`

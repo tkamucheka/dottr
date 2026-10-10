@@ -1,0 +1,1 @@
+test/cases/syntax-raw-block-without-shell.dotfile:5:5: error: a raw block must be the body of a `shell` block (shell do ... end)

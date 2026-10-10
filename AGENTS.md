@@ -8,7 +8,12 @@
 * Build output: `build/` (gitignored)
 
 ## Build Commands
+* Create build directory: `mkdir -p build`
 * Build tool: `cc -std=c11 -Wall -Wextra -Iinclude lib/*.c tools/dottr.c -o build/dottr`
+* Build tests: `cc -std=c11 -Wall -Wextra -Iinclude lib/*.c test/*.c -o build/dottr-test`
+* Run tests (from the repository root, after building the tool): `build/dottr-test`
+* Regenerate expected fixture output: `build/dottr-test --update` (review the
+  resulting diff of `test/cases/*.out` before committing)
 * Clean build directory: `rm -rf build`
 
 ## Code Style and Architecture

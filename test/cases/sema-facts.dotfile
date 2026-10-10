@@ -1,0 +1,19 @@
+# args: check
+# status: 2
+pkg a do
+  local D = "/tmp"
+  check directory MISSING
+  create directory ALSO_MISSING
+  apply_if D do
+  end
+  apply_unless D do
+  end
+  check directory D
+  apply_if D do
+  end
+end
+pkg b do
+  local D = "/tmp"
+  apply_if D do
+  end
+end

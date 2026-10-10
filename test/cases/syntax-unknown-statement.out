@@ -1,0 +1,1 @@
+test/cases/syntax-unknown-statement.dotfile:4:3: error: expected a statement, found identifier `install`

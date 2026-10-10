@@ -1,0 +1,32 @@
+unit zlib
+  install package zlib: sudo pacman -S --needed --noconfirm zlib
+
+unit tree-sitter-cli
+  install package tree-sitter-cli: sudo pacman -S --needed --noconfirm tree-sitter-cli
+
+unit app
+  local ROOT = "$HOME/app"
+  local CONF = "$HOME/app/conf.d"
+  needs zlib, tree-sitter-cli
+  needs zlib
+  install package app-data (child unit app-child-app-data): sudo pacman -S --needed --noconfirm app-data
+  check directory ROOT: $HOME/app (currently false)
+  check file CONF: $HOME/app/conf.d (currently false)
+  check command ROOT: $HOME/app (currently false)
+  create directory CONF: $HOME/app/conf.d
+  apply_if ROOT
+    shell (bash)
+      [[ -d "$ROOT" ]] && echo "exists: $ROOT"
+  else
+    shell (zsh)
+      print -r -- "missing"
+  apply_unless CONF
+    shell (sh)
+      cat > "$CONF/settings.yml" <<YAML
+      server:
+        port: 8080
+      end
+      YAML
+    shell (sh)
+      echo second
+  apply

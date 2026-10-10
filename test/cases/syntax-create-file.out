@@ -1,0 +1,1 @@
+test/cases/syntax-create-file.dotfile:5:10: error: `create` supports only `directory`

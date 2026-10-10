@@ -1,0 +1,17 @@
+==> unit setup
+  -> check directory NESTED: false
+  -> create directory NESTED: $HOME/root/a/b/c
+  -> check directory NESTED: true
+  -> apply_if NESTED: fact is true, evaluating first branch
+  -> shell (sh), line 10
+created $HOME/root/a/b/c
+==> unit config
+  -> check file CONF: false
+  -> apply_unless CONF: fact is false, evaluating body
+  -> shell (bash), line 23
+  -> check file CONF: true
+  -> shell (sh), line 35
+server:
+  port: 8080
+end
+summary: 2 satisfied, 0 failed, 0 skipped

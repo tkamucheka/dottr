@@ -1,0 +1,33 @@
+# args: apply
+# status: 0
+pkg a do
+  local SH = "sh"
+  local MISSING = "dottr-no-such-command"
+  local ABSOLUTE = "/bin/sh"
+  local HOME_DIR = "@{dottr.env.home}"
+  check command SH
+  check command MISSING
+  check command ABSOLUTE
+  check command HOME_DIR
+  apply_if SH do
+    shell do
+      ```
+      echo "sh is a command"
+      ```
+    end
+  end
+  apply_unless MISSING do
+    shell do
+      ```
+      echo "dottr-no-such-command is not a command"
+      ```
+    end
+  end
+  apply_unless HOME_DIR do
+    shell do
+      ```
+      echo "a directory is not a command"
+      ```
+    end
+  end
+end

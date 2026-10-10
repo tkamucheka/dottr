@@ -1,0 +1,11 @@
+==> unit broken
+  -> shell (sh), line 5
+before
+test/cases/apply-failure.dotfile:5:5: error: shell block exited with status 1
+==> unit broken failed
+==> unit dependent skipped: dependency broken was not satisfied
+==> unit transitive skipped: dependency dependent was not satisfied
+==> unit independent
+  -> shell (sh), line 44
+independent ran
+summary: 1 satisfied, 1 failed, 2 skipped

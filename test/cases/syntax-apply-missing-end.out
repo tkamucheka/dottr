@@ -1,0 +1,1 @@
+test/cases/syntax-apply-missing-end.dotfile:10:1: error: expected `end` to close `apply` opened on line 4, found end of file

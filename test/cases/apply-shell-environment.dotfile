@@ -1,0 +1,37 @@
+# args: apply
+# status: 0
+pkg a do
+  local NAME = "world"
+  local GREETING = "hello @{NAME}"
+  local SPECIAL = "two  words; $(echo not run) 'quoted' \"double\""
+  apply do
+    shell do
+      ```
+      echo "NAME=$NAME GREETING=$GREETING"
+      printf '%s\n' "$SPECIAL"
+      echo "not interpolated: @{NAME} @{u} HEAD@{1}"
+      echo 'single quotes: @{NAME}' unquoted: @{NAME}
+      echo "LATER=${LATER:-unset}"
+      ```
+    end
+  end
+  local LATER = "bound"
+  apply do
+    shell do
+      ```bash
+      echo "LATER=$LATER"
+      ```
+    end
+  end
+end
+
+pkg b do
+  needs a
+  apply do
+    shell do
+      ```zsh
+      echo "NAME in another unit: ${NAME:-unset}"
+      ```
+    end
+  end
+end

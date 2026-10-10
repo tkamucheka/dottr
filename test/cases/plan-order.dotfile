@@ -1,0 +1,12 @@
+# args: plan
+# status: 0
+pkg c do
+  needs b
+end
+pkg a do
+end
+pkg b do
+  needs a
+end
+pkg d do
+end

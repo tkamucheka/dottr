@@ -1,0 +1,1 @@
+test/cases/syntax-second-else.dotfile:8:3: error: `apply_if` takes at most one `else` branch

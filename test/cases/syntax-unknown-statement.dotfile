@@ -1,0 +1,5 @@
+# args: check
+# status: 2
+pkg a do
+  install a
+end

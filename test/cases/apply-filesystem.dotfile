@@ -1,0 +1,41 @@
+# args: apply
+# status: 0
+pkg setup do
+  local ROOT = "@{dottr.env.home}/root"
+  local NESTED = "@{ROOT}/a/b/c"
+  check directory NESTED
+  create directory NESTED
+  check directory NESTED
+  apply_if NESTED do
+    shell do
+      ```
+      echo "created $NESTED"
+      ```
+    end
+  end
+end
+
+pkg config do
+  needs setup
+  local CONF = "@{dottr.env.home}/root/config.yml"
+  check file CONF
+  apply_unless CONF do
+    shell do
+      ```bash
+      cat > "$CONF" <<YAML
+      server:
+        port: 8080
+      end
+      YAML
+      ```
+    end
+  end
+  check file CONF
+  apply do
+    shell do
+      ```
+      cat "$CONF"
+      ```
+    end
+  end
+end

@@ -1,0 +1,48 @@
+# args: plan
+# status: 0
+pkg zlib
+
+pkg "tree-sitter-cli"
+
+pkg app do
+  local ROOT = "@{dottr.env.home}/app"
+  local CONF = "@{ROOT}/conf.d"
+  needs zlib, "tree-sitter-cli"
+  needs zlib
+  pkg "app-data"
+  check directory ROOT
+  check file CONF
+  check command ROOT
+  create directory CONF
+  apply_if ROOT do
+    shell do
+      ```bash
+      [[ -d "$ROOT" ]] && echo "exists: $ROOT"
+      ```
+    end
+  else
+    shell do
+      ```zsh
+      print -r -- "missing"
+      ```
+    end
+  end
+  apply_unless CONF do
+    shell do
+      ```
+      cat > "$CONF/settings.yml" <<YAML
+      server:
+        port: 8080
+      end
+      YAML
+      ```
+    end
+    shell do
+      ```sh
+      echo second
+      ```
+    end
+  end
+  apply do
+  end
+end

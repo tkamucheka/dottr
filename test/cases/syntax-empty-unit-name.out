@@ -1,0 +1,1 @@
+test/cases/syntax-empty-unit-name.dotfile:4:9: error: a unit name must not be empty

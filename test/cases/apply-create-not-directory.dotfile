@@ -1,0 +1,20 @@
+# args: apply
+# status: 1
+pkg a do
+  local P = "@{dottr.env.home}/file"
+  apply do
+    shell do
+      ```
+      touch "$P"
+      ```
+    end
+  end
+  create directory P
+  apply do
+    shell do
+      ```
+      echo "not reached"
+      ```
+    end
+  end
+end

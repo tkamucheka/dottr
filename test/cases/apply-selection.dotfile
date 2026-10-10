@@ -1,0 +1,30 @@
+# args: apply b
+# status: 0
+pkg a do
+  apply do
+    shell do
+      ```
+      echo "a ran"
+      ```
+    end
+  end
+end
+pkg b do
+  needs a
+  apply do
+    shell do
+      ```
+      echo "b ran"
+      ```
+    end
+  end
+end
+pkg c do
+  apply do
+    shell do
+      ```
+      echo "c ran"
+      ```
+    end
+  end
+end

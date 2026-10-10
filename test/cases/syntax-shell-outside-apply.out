@@ -1,0 +1,1 @@
+test/cases/syntax-shell-outside-apply.dotfile:4:3: error: `shell` blocks may appear only inside `apply`, `apply_if`, or `apply_unless`

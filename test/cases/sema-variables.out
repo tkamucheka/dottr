@@ -1,0 +1,9 @@
+test/cases/sema-variables.dotfile:4:14: error: variable `B` is used before it is bound on line 5
+test/cases/sema-variables.dotfile:6:9: error: variable `B` is already bound on line 5
+test/cases/sema-variables.dotfile:7:14: error: variable `C` is used in its own definition
+test/cases/sema-variables.dotfile:8:14: error: unknown built-in value `dottr.env.user`; version 1 defines dottr.env.home
+test/cases/sema-variables.dotfile:9:14: error: unknown reference `foo.bar`; a reference containing '.' must name a built-in value under `dottr`
+test/cases/sema-variables.dotfile:10:14: error: undefined variable `undefined`
+test/cases/sema-variables.dotfile:11:9: error: variable `PATH` would replace the environment variable PATH in shell blocks; choose another name
+test/cases/sema-variables.dotfile:12:9: error: variable `HOME` would replace the environment variable HOME in shell blocks; choose another name
+test/cases/sema-variables.dotfile:16:14: error: undefined variable `B`

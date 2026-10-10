@@ -1,0 +1,12 @@
+==> unit a
+  -> shell (sh), line 5
+default: sh
+  -> shell (sh), line 10
+sh: sh
+  -> shell (bash), line 15
+bash: bash
+bash errexit: on
+  -> shell (zsh), line 21
+zsh: zsh
+zsh errexit: on
+summary: 1 satisfied, 0 failed, 0 skipped

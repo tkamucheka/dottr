@@ -1,0 +1,1 @@
+test/cases/sema-duplicate-unit.dotfile:4:5: error: duplicate unit `git`; first declared on line 3

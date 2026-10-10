@@ -1,0 +1,1 @@
+test/cases/syntax-reserved-unit-name.dotfile:3:5: error: expected unit name after `pkg`, found reserved word `file`; write a unit with this name as a string, "file"

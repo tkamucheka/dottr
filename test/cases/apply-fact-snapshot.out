@@ -1,0 +1,14 @@
+==> unit a
+  -> check directory D: false
+  -> apply_unless D: fact is false, evaluating body
+  -> shell (sh), line 7
+created
+  -> apply_if D: fact is false, evaluating else branch
+  -> shell (sh), line 21
+else branch ran; the fact is a snapshot
+  -> check directory D: true
+  -> apply_if D: fact is true, evaluating first branch
+  -> shell (sh), line 29
+first branch ran after a new check
+  -> apply_unless D: fact is true, nothing to do
+summary: 1 satisfied, 0 failed, 0 skipped

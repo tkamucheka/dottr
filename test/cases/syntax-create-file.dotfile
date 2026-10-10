@@ -1,0 +1,6 @@
+# args: check
+# status: 2
+pkg a do
+  local F = "/tmp/f"
+  create file F
+end

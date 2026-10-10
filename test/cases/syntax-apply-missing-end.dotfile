@@ -1,0 +1,9 @@
+# args: check
+# status: 2
+pkg a do
+  apply do
+    shell do
+      ```
+      echo hi
+      ```
+    end

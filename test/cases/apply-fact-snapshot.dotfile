@@ -1,0 +1,42 @@
+# args: apply
+# status: 0
+pkg a do
+  local D = "@{dottr.env.home}/d"
+  check directory D
+  apply_unless D do
+    shell do
+      ```
+      mkdir "$D"
+      echo "created"
+      ```
+    end
+  end
+  apply_if D do
+    shell do
+      ```
+      echo "first branch ran"
+      ```
+    end
+  else
+    shell do
+      ```
+      echo "else branch ran; the fact is a snapshot"
+      ```
+    end
+  end
+  check directory D
+  apply_if D do
+    shell do
+      ```
+      echo "first branch ran after a new check"
+      ```
+    end
+  end
+  apply_unless D do
+    shell do
+      ```
+      echo "not reached"
+      ```
+    end
+  end
+end

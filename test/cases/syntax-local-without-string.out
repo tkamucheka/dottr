@@ -1,0 +1,1 @@
+test/cases/syntax-local-without-string.dotfile:4:13: error: expected string after '=', found identifier `Y`

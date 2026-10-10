@@ -1,0 +1,4 @@
+# args: plan nope
+# status: 2
+pkg a do
+end

@@ -1,0 +1,28 @@
+# args: apply
+# status: 0
+pkg a do
+  apply do
+    shell do
+      ```
+      echo "default: $0"
+      ```
+    end
+    shell do
+      ```sh
+      echo "sh: $0"
+      ```
+    end
+    shell do
+      ```bash
+      [[ -n "$BASH_VERSION" ]] && echo "bash: $0"
+      case $- in *e*) echo "bash errexit: on" ;; esac
+      ```
+    end
+    shell do
+      ```zsh
+      echo "zsh: $ZSH_NAME"
+      [[ -o errexit ]] && echo "zsh errexit: on"
+      ```
+    end
+  end
+end

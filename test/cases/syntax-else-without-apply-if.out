@@ -1,0 +1,1 @@
+test/cases/syntax-else-without-apply-if.dotfile:4:3: error: `else` without a matching `apply_if`

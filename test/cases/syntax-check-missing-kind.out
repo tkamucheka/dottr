@@ -1,0 +1,1 @@
+test/cases/syntax-check-missing-kind.dotfile:5:9: error: expected `command`, `file`, or `directory` after `check`, found identifier `F`

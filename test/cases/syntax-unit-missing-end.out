@@ -1,0 +1,1 @@
+test/cases/syntax-unit-missing-end.dotfile:5:1: error: expected `end` to close unit `a` opened on line 3, found end of file

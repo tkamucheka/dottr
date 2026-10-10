@@ -1,0 +1,15 @@
+==> unit a
+  -> check command SH: true
+  -> check command MISSING: false
+  -> check command ABSOLUTE: true
+  -> check command HOME_DIR: false
+  -> apply_if SH: fact is true, evaluating first branch
+  -> shell (sh), line 13
+sh is a command
+  -> apply_unless MISSING: fact is false, evaluating body
+  -> shell (sh), line 20
+dottr-no-such-command is not a command
+  -> apply_unless HOME_DIR: fact is false, evaluating body
+  -> shell (sh), line 27
+a directory is not a command
+summary: 1 satisfied, 0 failed, 0 skipped

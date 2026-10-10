@@ -1,0 +1,5 @@
+test/cases/sema-facts.dotfile:5:19: error: undefined variable `MISSING`
+test/cases/sema-facts.dotfile:6:20: error: undefined variable `ALSO_MISSING`
+test/cases/sema-facts.dotfile:7:12: error: `apply_if D` requires a preceding `check ... D` in unit `a`
+test/cases/sema-facts.dotfile:9:16: error: `apply_unless D` requires a preceding `check ... D` in unit `a`
+test/cases/sema-facts.dotfile:17:12: error: `apply_if D` requires a preceding `check ... D` in unit `b`

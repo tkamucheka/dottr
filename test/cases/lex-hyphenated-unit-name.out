@@ -1,0 +1,1 @@
+test/cases/lex-hyphenated-unit-name.dotfile:3:9: error: unexpected character '-'; a unit name containing characters other than letters, digits, and '_' must be written as a string, for example "tree-sitter-cli"

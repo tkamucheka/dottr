@@ -1,0 +1,13 @@
+==> unit a
+  -> shell (sh), line 8
+NAME=world GREETING=hello world
+two  words; $(echo not run) 'quoted' "double"
+not interpolated: @{NAME} @{u} HEAD@{1}
+single quotes: @{NAME} unquoted: @{NAME}
+LATER=unset
+  -> shell (bash), line 20
+LATER=bound
+==> unit b
+  -> shell (zsh), line 31
+NAME in another unit: unset
+summary: 2 satisfied, 0 failed, 0 skipped

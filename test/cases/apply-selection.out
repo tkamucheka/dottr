@@ -1,0 +1,7 @@
+==> unit a
+  -> shell (sh), line 5
+a ran
+==> unit b
+  -> shell (sh), line 15
+b ran
+summary: 2 satisfied, 0 failed, 0 skipped

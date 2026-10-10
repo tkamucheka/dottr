@@ -1,0 +1,2 @@
+test/cases/sema-undeclared-dependency.dotfile:4:9: error: unit `git` is not declared; declare it at top level, for example `pkg git`
+test/cases/sema-undeclared-dependency.dotfile:4:14: error: unit `tree-sitter-cli` is not declared; declare it at top level, for example `pkg "tree-sitter-cli"`

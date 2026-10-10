@@ -1,0 +1,1 @@
+dottr: error: test/cases/plan-unknown-unit.dotfile declares no unit named 'nope'

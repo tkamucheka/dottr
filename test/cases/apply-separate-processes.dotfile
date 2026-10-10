@@ -1,0 +1,23 @@
+# args: apply
+# status: 0
+pkg a do
+  apply do
+    shell do
+      ```
+      cd "$HOME"
+      DOTTR_TEST_VAR=set
+      export DOTTR_TEST_VAR
+      ```
+    end
+    shell do
+      ```
+      if [ "$(pwd)" = "$HOME" ]; then
+        echo "working directory carried over"
+      else
+        echo "working directory not carried over"
+      fi
+      echo "variable: ${DOTTR_TEST_VAR:-unset}"
+      ```
+    end
+  end
+end

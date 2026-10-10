@@ -1,0 +1,17 @@
+# args: check
+# status: 2
+pkg a do
+  local A = "@{B}/x"
+  local B = "b"
+  local B = "again"
+  local C = "@{C}"
+  local D = "@{dottr.env.user}"
+  local E = "@{foo.bar}"
+  local F = "@{undefined}"
+  local PATH = "/usr/bin"
+  local HOME = "/tmp"
+  local Path = "allowed"
+end
+pkg b do
+  local X = "@{B}"
+end

@@ -1,0 +1,1 @@
+test/cases/syntax-unit-name-reference.dotfile:3:6: error: a unit name must not contain interpolation references

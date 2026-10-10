@@ -1,0 +1,6 @@
+==> unit a
+  -> shell (sh), line 6
+  -> create directory P: $HOME/file
+test/cases/apply-create-not-directory.dotfile:12:3: error: $HOME/file exists and is not a directory
+==> unit a failed
+summary: 0 satisfied, 1 failed, 0 skipped

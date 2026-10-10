@@ -1,0 +1,50 @@
+# args: apply
+# status: 1
+pkg broken do
+  apply do
+    shell do
+      ```
+      echo before
+      false
+      echo unreachable
+      ```
+    end
+    shell do
+      ```
+      echo "second block not reached"
+      ```
+    end
+  end
+  apply do
+    shell do
+      ```
+      echo "later statement not reached"
+      ```
+    end
+  end
+end
+
+pkg dependent do
+  needs broken
+  apply do
+    shell do
+      ```
+      echo "dependent not reached"
+      ```
+    end
+  end
+end
+
+pkg transitive do
+  needs dependent
+end
+
+pkg independent do
+  apply do
+    shell do
+      ```
+      echo "independent ran"
+      ```
+    end
+  end
+end
