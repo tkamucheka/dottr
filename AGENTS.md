@@ -3,7 +3,8 @@
 ## Layout
 * Public headers: `include/dottr/` (include as `"dottr/<name>.h"`)
 * Library code: `lib/`
-* Frontend tool entry point: `tools/`
+* Program entry points: `tools/` (`tools/dottr.c` is the frontend;
+  `tools/dottr-fuzzer/` is the libFuzzer harness)
 * Tests and fixtures: `test/`
 * Build output: `build/` (gitignored)
 
@@ -14,6 +15,10 @@
 * Run tests (from the repository root, after building the tool): `build/dottr-test`
 * Regenerate expected fixture output: `build/dottr-test --update` (review the
   resulting diff of `test/cases/*.out` before committing)
+* Build fuzzer (requires clang): `clang -std=c11 -Wall -Wextra -g -O1 -fsanitize=fuzzer,address,undefined -Iinclude lib/*.c tools/dottr-fuzzer/fuzz_manifest.c -o build/dottr-fuzzer`
+* Run fuzzer: `mkdir -p build/fuzz-corpus && build/dottr-fuzzer -dict=tools/dottr-fuzzer/dottr.dict -artifact_prefix=build/ -max_total_time=300 build/fuzz-corpus test/cases`
+  (new inputs go to `build/fuzz-corpus`, crash reproducers to `build/`;
+  reproduce a crash with `build/dottr-fuzzer FILE`)
 * Clean build directory: `rm -rf build`
 
 ## Code Style and Architecture
