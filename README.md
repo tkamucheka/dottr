@@ -1,16 +1,18 @@
 # dottr
 
-dottr sets up a machine from a manifest, `packages.dotfile`, written in a
-small language. Each unit either installs a package with pacman or runs shell
-scripts, gated on checks of the host, and may depend on other units.
+dottr sets up a machine from a manifest. The manifest declares the packages
+and configuration of the machine as units, written in a small language: a
+unit installs a package, or runs shell scripts gated on checks of the host,
+and may depend on other units. `dottr apply` brings the machine to the
+declared state, and is run again whenever the manifest changes.
 
 ````
 pkg git
 
 pkg tmux do
-  local TPM_DIR = "@{dottr.env.home}/.config/tmux/plugins/tpm"
   needs git
   pkg tmux
+  local TPM_DIR = "@{dottr.env.home}/.config/tmux/plugins/tpm"
   check directory TPM_DIR
   apply_unless TPM_DIR do
     shell do
@@ -22,37 +24,61 @@ pkg tmux do
 end
 ````
 
-## Install
+* Dependencies between units, applied in order; a failed unit skips only the
+  units that depend on it.
+* `dottr plan` shows what would be done before anything is changed.
+* Shell scripts embedded as written, with the unit's variables in their
+  environment.
+* A formatter, a language server, and editor support for VS Code and Neovim.
+
+dottr installs packages with pacman and targets Arch Linux and its
+derivatives.
+
+## Installation
 
 ```
 curl -fsSL https://raw.githubusercontent.com/tkamucheka/dottr/main/install.sh | sh
 ```
 
-This builds `dottr`, `dottr-format`, and `dottr-lsp` and installs them into
-`~/.local/opt/dottr`, linked from `~/.local/bin`. It requires a C compiler,
-and git or curl. Options and the installation from a private repository are
-described in [Installation](docs/reference/installation.md).
+The script builds dottr from source, which requires a C compiler and git, and
+installs it into `~/.local/opt/dottr`, linked from `~/.local/bin`. Options,
+upgrading, and removal are described in
+[Installation](docs/reference/installation.md).
 
-## Use
+## Usage
+
+Write a manifest, `packages.dotfile`, and in its directory run:
 
 ```
-dottr check              # validate packages.dotfile
-dottr plan [UNIT...]     # print what apply would do
-dottr apply [UNIT...]    # apply the units, and the units they need
-dottr-format -w FILE...  # format manifests
+dottr check              # validate the manifest
+dottr plan               # show what apply would do
+dottr apply              # apply every unit
+dottr apply tmux         # apply tmux and the units it needs
+dottr-format -w packages.dotfile
 ```
-
-`-f FILE` selects another manifest. `apply` installs packages with
-`sudo pacman`.
 
 ## Documentation
 
+* [The Manifest Language](docs/reference/language.md)
+* [Command Line](docs/reference/command-line.md)
 * [Installation](docs/reference/installation.md)
-* [Grammar](docs/reference/grammar.md): the manifest language
-* [Formatting](docs/reference/formatting.md): `dottr-format` and `dottr fmt`
-* [Language server](docs/reference/lsp.md): `dottr-lsp`
-* [Neovim](docs/reference/neovim.md): the tree-sitter grammar and the
-  language server
+* [Formatting](docs/reference/formatting.md)
+* [Language Server](docs/reference/lsp.md)
+* [Editors](docs/reference/editors.md): VS Code and Neovim
+* [Grammar](docs/reference/grammar.md): the formal grammar of the language
 
-The tree-sitter grammar is in the submodule `utils/tree-sitter-dottr`; clone
-with `--recurse-submodules`.
+## Building from Source
+
+```
+git clone --recurse-submodules https://github.com/tkamucheka/dottr.git
+cd dottr
+mkdir -p build
+for p in dottr dottr-format dottr-lsp; do
+  cc -std=c11 -Wall -Wextra -Iinclude lib/*.c tools/$p/$p.c -o build/$p
+done
+cc -std=c11 -Wall -Wextra -Iinclude lib/*.c test/*.c -o build/dottr-test
+build/dottr-test
+```
+
+The editor support is developed in the submodules `utils/tree-sitter-dottr`
+and `utils/vscode-dottr`.

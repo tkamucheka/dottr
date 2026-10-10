@@ -10,8 +10,8 @@
 * Editor support: `utils/`, as git submodules (clone with
   `--recurse-submodules` or run `git submodule update --init`):
   `utils/tree-sitter-dottr/` is the tree-sitter grammar and queries, and
-  `utils/vscode-dottr/` the VS Code extension; Neovim setup in
-  `docs/reference/neovim.md`
+  `utils/vscode-dottr/` the VS Code extension; editor setup in
+  `docs/reference/editors.md`
 * Build output: `build/` (gitignored)
 * Install script: `install.sh` (documented in `docs/reference/installation.md`)
 
@@ -50,6 +50,11 @@
   self-contained: its README leads with generic installation and
   configuration sections, as the README of an editor plugin does, and does
   not depend on documentation in this repository.
+* README files and reference documentation are product documentation,
+  written for the users of dottr and its tools: what a feature does and how
+  to use it. They do not describe the current state of the repositories
+  (such as a repository being private), the maintainer's own setup,
+  implementation techniques, design history, or plans.
 * All documentation must be technical/academic.
 * Never use emojis in documentation, comments, or commit messages.
 

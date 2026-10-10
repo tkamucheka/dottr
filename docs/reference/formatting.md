@@ -1,8 +1,8 @@
-# dottr-format and dottr fmt
+# Formatting
 
-`dottr-format` and `dottr fmt` rewrite a manifest in a canonical layout. It
-changes only whitespace: the token sequence of the manifest, the contents of
-its raw blocks, and the text of its comments are preserved.
+`dottr-format` and `dottr fmt` rewrite a manifest in a canonical layout.
+Formatting changes only whitespace: the statements of the manifest, the
+scripts of its shell blocks, and the text of its comments are preserved.
 
 ## 1. Command-Line Interface
 
@@ -23,7 +23,7 @@ Without FILE, or with FILE `-`, `dottr-format` reads standard input and
 writes standard output, for use by editors; `-w` requires files. Options
 precede the files. The exit status is the highest of the files: 0 on
 success, 1 if `--check` finds an unformatted file, and 2 for a usage error,
-an unreadable file, or a lexical or syntax error.
+an unreadable file, or a syntax error.
 
 ```
 dottr fmt [-f FILE] [-w | --check]
@@ -55,15 +55,16 @@ neither form.
 4. **Blank lines.** A run of blank lines is reduced to one. Blank lines are
    removed at the start and end of the file, after a line that opens a block
    (`... do`, `else`), and before a line that closes one (`end`, `else`).
-5. **Raw blocks.** The fences are indented to the body level of the `shell`
-   block. Each line of the block is re-indented by replacing the margin of the
-   original block with the
-   new margin; indentation relative to the margin is preserved. Blank and
+5. **Shell blocks.** The fences are indented to the body level of the
+   `shell` block. Each line of the script is re-indented by replacing the
+   indentation of the original opening fence with that of the new one;
+   indentation relative to the fence is preserved
+   ([The Manifest Language](language.md), Section 6.1). Blank and
    whitespace-only lines become empty lines. Other text, including trailing
    whitespace, is preserved, since it is shell text.
 6. **Line endings.** Lines end with a line feed; the file ends with exactly
    one.
 
-Rules 4 and 5 rely on properties of the language: blank lines are not
-significant outside raw blocks, and whitespace-only lines and the margin of a
-raw block are not part of its contents.
+Rules 4 and 5 do not change the meaning of a manifest: blank lines are not
+significant outside shell blocks, and the indentation of the fence and
+whitespace-only lines are not part of a script.

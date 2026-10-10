@@ -1,6 +1,8 @@
-# dottr Manifest Language Grammar
+# Grammar
 
-This document gives the grammar of the dottr manifest language.
+This document gives the formal grammar of the dottr manifest language. The
+meaning of each construct is described in
+[The Manifest Language](language.md).
 
 The grammar is given in two levels. The lexical grammar (Section 2) defines
 how source text is divided into tokens; the syntactic grammar (Section 3)
@@ -86,8 +88,8 @@ written directly:
   line terminator.
 * **`RAW_BLOCK`** is produced by a `raw_block`, followed by a `NEWLINE` for
   its closing fence. Its value is the sequence of `raw_line`s after margin
-  removal; the `info_string`, if any, selects
-  the interpreter.
+  removal (Section 4); the `info_string`, if any, selects the interpreter
+  ([The Manifest Language](language.md), Section 6.1).
 * **`EOF`** is produced at the end of input.
 
 ## 3. Syntactic Grammar
@@ -146,32 +148,38 @@ end
 
 Notes:
 
-* `action_stmt` currently has a single alternative. It is the extension point
-  for future dottr-native actions that replace recurring shell patterns, such
-  as a git clone construct. Such actions may be mixed
-  with `shell` blocks inside the same `apply` body.
 * `shell` may appear only inside `apply`, `apply_if`, or `apply_unless`. A
   `shell` block elsewhere is a syntax error.
-* Block-form units may not be nested in version 1. Only the bare form `pkg`
-  may appear inside a unit body.
-* The block form `pkg ... do ... end` is a single statement.
+* Block-form units cannot be nested. Only the bare form `pkg` may appear
+  inside a unit body.
 * `create` accepts only the kind `directory`.
 
 ## 4. Constraints Not Expressed by the Grammar
 
 Lexical constraints, reported by the lexer:
 
-* Every captured line of a raw block that is not empty or blank must begin
-  with the margin, the leading blanks of the opening fence.
+* Every line of a raw block that is not empty or blank must begin with the
+  margin, the leading blanks of the opening fence. The margin is compared
+  byte by byte, so a tab does not match a space. The margin is removed from
+  each line; empty and blank lines become empty lines.
 * Within a string literal, `@{` must begin a well-formed `INTERP`.
 
 Syntactic constraints, reported by the parser:
 
 * A `unit_name` written as a `STRING` must be non-empty and must not contain
-  an `INTERP` (*pending confirmation*). Unit names are resolved before
-  evaluation, when no variable has a value.
+  an `INTERP`.
 
-Semantic constraints, reported before evaluation: unique unit names,
-references to bound variables and defined built-in values, protected variable
-names, a `check` of the variable before `apply_if` or `apply_unless`, and
-declared, acyclic dependencies.
+Semantic constraints, reported before evaluation and described in
+[The Manifest Language](language.md):
+
+* Unit names are unique (Section 2).
+* Every `needs` names a declared unit, and dependencies are acyclic
+  (Section 3).
+* A variable is bound at most once in a unit, and is not named after a
+  protected environment variable (Sections 4 and 4.3).
+* Every variable named by `check`, `create`, or a single-component
+  `INTERP` is bound earlier in the unit, and every multi-component `INTERP`
+  names a built-in value; the only built-in value is `dottr.env.home`
+  (Section 4.2).
+* `apply_if NAME` and `apply_unless NAME` follow a `check` of `NAME` in the
+  same unit (Section 6).

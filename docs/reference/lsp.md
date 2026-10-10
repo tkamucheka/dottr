@@ -1,8 +1,9 @@
-# dottr-lsp and dottr lsp
+# Language Server
 
 `dottr-lsp` is a Language Server Protocol server for dottr manifests, also
-available as the subcommand `dottr lsp`. Both run the same server, which
-communicates over standard input and output and takes no arguments.
+available as `dottr lsp`. It communicates over standard input and output and
+takes no arguments. Editors start it for files of the `dottr` language; the
+setup of supported editors is described in [Editors](editors.md).
 
 ## Features
 
@@ -26,15 +27,9 @@ uses in single quotes and escaped dollar signs (`\$NAME`) are excluded, and
 a shell variable assigned in the script with the name of a local is treated
 as a use of the local.
 
-Completion uses a line-based scan of the document rather than the syntax
-tree, so it works while the document has syntax errors.
+Completion remains available while the document contains syntax errors.
 
 ## Positions
 
 The server uses UTF-8 positions if the client offers them in
 `general.positionEncodings`, and UTF-16 otherwise.
-
-## Editors
-
-The setup for Neovim, with the tree-sitter grammar, is described in
-`docs/reference/neovim.md`.

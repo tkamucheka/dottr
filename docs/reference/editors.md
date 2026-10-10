@@ -1,40 +1,71 @@
-# Neovim
+# Editors
 
-Neovim support for dottr manifests has two parts:
+Editor support for dottr manifests has two parts:
 
-* The tree-sitter grammar,
+* Highlighting, including the scripts of `shell` blocks: a TextMate grammar
+  for VS Code, and a tree-sitter grammar,
   [tree-sitter-dottr](https://github.com/tkamucheka/tree-sitter-dottr), for
-  highlighting, highlighting of shell scripts, folds, indentation, and text
-  objects.
+  Neovim and other tree-sitter editors.
 * The language server, `dottr-lsp`, for diagnostics, navigation, rename,
-  hover, completion, and formatting (`docs/reference/lsp.md`).
+  hover, completion, and formatting ([Language Server](lsp.md)). It is
+  installed with dottr ([Installation](installation.md)) and works with any
+  editor that supports the Language Server Protocol.
 
-## Requirements
+Manifests use the extension `.dotfile`.
+
+## 1. Visual Studio Code
+
+The extension [vscode-dottr](https://github.com/tkamucheka/vscode-dottr)
+provides highlighting and starts `dottr-lsp`. It requires VS Code 1.91 or
+later and Node.js to build:
+
+```
+git clone https://github.com/tkamucheka/vscode-dottr.git
+cd vscode-dottr
+npm ci
+npm run package
+code --install-extension vscode-dottr-0.1.0.vsix
+```
+
+| Setting | Default | Meaning |
+|---------|---------|---------|
+| `dottr.server.path` | `""` | Path of `dottr-lsp`; if empty, `dottr-lsp` is found in `PATH`. |
+| `dottr.trace.server` | `"off"` | Logs the communication with the server: `off`, `messages`, or `verbose`. |
+
+To format manifests on save, add to `settings.json`:
+
+```json
+"[dottr]": {
+  "editor.formatOnSave": true
+}
+```
+
+## 2. Neovim
+
+Requirements:
 
 * Neovim 0.12 or later
 * [nvim-treesitter](https://github.com/nvim-treesitter/nvim-treesitter), `main`
   branch, with its requirements (`curl`, `tar`, the tree-sitter CLI, and a C
   compiler)
-* `dottr-lsp` on `PATH` (`docs/reference/installation.md`)
 
-## 1. Filetype
+### 2.1 Filetype
 
-Manifests use the extension `.dotfile`:
+Map the extension to the filetype `dottr`:
 
 ```lua
 vim.filetype.add({ extension = { dotfile = "dottr" } })
 ```
 
-Set the comment string in `ftplugin/dottr.lua`:
+and set the comment string in `ftplugin/dottr.lua`:
 
 ```lua
 vim.bo.commentstring = "# %s"
 ```
 
-## 2. Tree-sitter Grammar
+### 2.2 Tree-sitter Grammar
 
-Install the grammar with
-[gardener.nvim](https://github.com/tkamucheka/gardener.nvim), here with
+With [gardener.nvim](https://github.com/tkamucheka/gardener.nvim) and
 [lazy.nvim](https://github.com/folke/lazy.nvim):
 
 ```lua
@@ -61,13 +92,11 @@ Install the grammar with
 
 gardener installs the parser when a manifest is first opened and starts
 highlighting, folds, and indentation. The `bash` and `zsh` parsers highlight
-the scripts of `shell` blocks.
-
-Installation without gardener and the text objects of the grammar are
-described in the
+the scripts of `shell` blocks. Installation without gardener and the text
+objects of the grammar are described in the
 [tree-sitter-dottr README](https://github.com/tkamucheka/tree-sitter-dottr#readme).
 
-## 3. Language Server
+### 2.3 Language Server
 
 ```lua
 vim.lsp.config("dottr", {
@@ -96,13 +125,20 @@ on_attach = function(client, bufnr)
 end,
 ```
 
-A manifest with a syntax error is written unformatted. `dottr-format` can
-serve instead as the formatter of a plugin such as conform.nvim; configure
-only one of the two, or each write is formatted twice.
+A manifest with a syntax error is written unformatted. Alternatively,
+`dottr-format` can serve as the formatter of a plugin such as conform.nvim;
+configure only one of the two.
 
-## 4. Checking the Setup
+### 2.4 Checking the Setup
 
 * `:checkhealth vim.lsp` lists the attached `dottr` client.
 * `:InspectTree` shows the syntax tree of the buffer.
 * `:Inspect` on a word of a shell script lists `bash` or `zsh` captures,
   which confirms that shell scripts are highlighted.
+
+## 3. Other Editors
+
+Configure the editor's language client to start `dottr-lsp`, without
+arguments, for files with the extension `.dotfile`. Editors that build
+tree-sitter grammars from source can use tree-sitter-dottr, which includes
+the generated parser and its queries.

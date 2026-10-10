@@ -1,0 +1,138 @@
+# Command Line
+
+dottr consists of three programs:
+
+| Program | Purpose |
+|---------|---------|
+| `dottr` | Validates a manifest, shows what applying it would do, and applies it. |
+| `dottr-format` | Formats manifests ([Formatting](formatting.md)). |
+| `dottr-lsp` | Language server for editors ([Language Server](lsp.md)). |
+
+## 1. dottr
+
+```
+dottr check [-f FILE]
+dottr plan  [-f FILE] [UNIT...]
+dottr apply [-f FILE] [UNIT...]
+dottr fmt   [-f FILE] [-w | --check]
+dottr lsp
+```
+
+| Command | Effect |
+|---------|--------|
+| `check` | Validates the manifest and reports its errors. Nothing on the host is read or changed. |
+| `plan` | Prints what `apply` would do, without changing the host. |
+| `apply` | Applies the manifest: installs packages, creates directories, and runs shell scripts. |
+| `fmt` | Formats the manifest, as `dottr-format` does ([Formatting](formatting.md)). |
+| `lsp` | Runs the language server, as `dottr-lsp` does ([Language Server](lsp.md)). |
+
+| Option | Meaning |
+|--------|---------|
+| `-f FILE` | The manifest to read; `-` reads standard input. Default: `packages.dotfile` in the current directory. |
+| `-w` | `fmt` only: rewrite the file instead of printing it. |
+| `--check` | `fmt` only: print nothing, and exit with status 1 if the file is not formatted. |
+| `-h`, `--help` | Print a summary of the usage. |
+| `--` | Ends the options; the remaining arguments are unit names. |
+
+### 1.1 Selecting Units
+
+`plan` and `apply` process every unit of the manifest, or, if unit names are
+given, those units and the units they need, directly or indirectly:
+
+```
+dottr apply neovim tmux
+```
+
+Units are processed in dependency order (see
+[The Manifest Language](language.md), Section 3). A name that the manifest
+does not declare is an error, and nothing is applied.
+
+### 1.2 Validation
+
+Every command except `lsp` first validates the whole manifest, and stops at
+the first lexical or syntax error or after reporting all semantic errors.
+Errors are written to standard error in the form
+
+```
+FILE:LINE:COLUMN: error: MESSAGE
+```
+
+for example
+
+```
+packages.dotfile:2:9: error: unit `b` is not declared; declare it at top level, for example `pkg b`
+```
+
+### 1.3 plan
+
+`plan` prints, for each unit, its variables with their values, the package
+commands it would run, its checks with their current results, and the scripts
+of its shell blocks:
+
+```
+unit git
+  install package git: sudo pacman -S --needed --noconfirm git
+
+unit tmux
+  local TPM_DIR = "/home/user/.config/tmux/plugins/tpm"
+  needs git
+  install package tmux (child unit tmux-child-tmux): sudo pacman -S --needed --noconfirm tmux
+  check directory TPM_DIR: /home/user/.config/tmux/plugins/tpm (currently false)
+  apply_unless TPM_DIR
+    shell (sh)
+      git clone https://github.com/tmux-plugins/tpm "$TPM_DIR"
+```
+
+Checks are evaluated against the current state of the host, which they only
+read. Since `plan` performs no actions, a check that follows an action in a
+unit reports the state before that action; `apply` may observe a different
+result.
+
+### 1.4 apply
+
+`apply` evaluates the selected units and reports each step, the branch taken
+by `apply_if` and `apply_unless`, and the outcome of each unit:
+
+```
+==> unit demo
+  -> check directory DIR: false
+  -> apply_unless DIR: fact is false, evaluating body
+  -> shell (sh), line 5
+==> unit broken
+  -> shell (sh), line 14
+packages.dotfile:14:5: error: shell block exited with status 1
+==> unit broken failed
+==> unit after skipped: dependency broken was not satisfied
+summary: 1 satisfied, 1 failed, 1 skipped
+```
+
+Package installations run `sudo pacman`, which may ask for a password. Shell
+scripts inherit the standard streams of dottr and may be interactive. A unit
+stops at its first failing statement; units that need it are skipped, and the
+remaining units are still applied.
+
+### 1.5 Exit Status
+
+| Status | `check` | `plan` | `apply` |
+|--------|---------|--------|---------|
+| 0 | The manifest is valid. | The plan was printed. | Every selected unit was satisfied. |
+| 1 | | A value could not be computed, such as an unknown home directory. | A unit failed or was skipped. |
+| 2 | Usage error, unreadable manifest, or invalid manifest. | As for `check`, or an undeclared unit name. | As for `plan`. |
+
+## 2. dottr-format
+
+```
+dottr-format [-w | --check] [FILE...]
+```
+
+Formats manifests; see [Formatting](formatting.md).
+
+## 3. dottr-lsp
+
+```
+dottr-lsp
+```
+
+Runs the language server on standard input and output. It takes no
+arguments and is started by an editor; see [Language Server](lsp.md) and
+[Editors](editors.md).
