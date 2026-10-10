@@ -1,5 +1,8 @@
 #include "dottr/format.h"
 
+#include <errno.h>
+#include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
 
 #include "dottr/lexer.h"
@@ -293,4 +296,60 @@ bool formatEquivalent(const char *a, size_t aLength, const char *b,
 
     arenaFree(&arena);
     return same;
+}
+
+static bool writeFile(const char *path, const char *data, size_t length)
+{
+    FILE *file = fopen(path, "wb");
+    if (!file) {
+        return false;
+    }
+    bool ok = fwrite(data, 1, length, file) == length;
+    return fclose(file) == 0 && ok;
+}
+
+int formatPath(const char *program, const char *path, FormatMode mode)
+{
+    bool fromStdin = strcmp(path, "-") == 0;
+    const char *name = fromStdin ? "<stdin>" : path;
+    char *source;
+    size_t length;
+    if (!(fromStdin ? readStream(stdin, &source, &length)
+                    : readFile(path, &source, &length))) {
+        fprintf(stderr, "%s: error: cannot read %s: %s\n", program,
+                fromStdin ? "standard input" : path, strerror(errno));
+        return 2;
+    }
+
+    Diag diag;
+    diagInit(&diag, name, stderr);
+    StrBuf out;
+    strBufInit(&out);
+    int status = 0;
+
+    if (!formatManifest(source, length, &out, &diag)) {
+        status = 2;
+    } else {
+        const char *formatted = out.data ? out.data : "";
+        bool changed = out.length != length ||
+                       memcmp(formatted, source, length) != 0;
+        if (mode == FORMAT_CHECK) {
+            if (changed) {
+                fprintf(stderr, "%s: %s is not formatted\n", program, name);
+                status = 1;
+            }
+        } else if (mode == FORMAT_WRITE && !fromStdin) {
+            if (changed && !writeFile(path, formatted, out.length)) {
+                fprintf(stderr, "%s: error: cannot write %s: %s\n", program,
+                        path, strerror(errno));
+                status = 2;
+            }
+        } else {
+            fwrite(formatted, 1, out.length, stdout);
+        }
+    }
+
+    strBufFree(&out);
+    free(source);
+    return status;
 }

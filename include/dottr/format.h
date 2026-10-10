@@ -24,4 +24,22 @@ bool formatManifest(const char *source, size_t length, StrBuf *out,
 bool formatEquivalent(const char *a, size_t aLength, const char *b,
                       size_t bLength);
 
+typedef enum {
+    /* Write the formatted manifest to standard output. */
+    FORMAT_PRINT,
+    /* Rewrite the file if its formatting changes. */
+    FORMAT_WRITE,
+    /* Write nothing; report whether the file is formatted. */
+    FORMAT_CHECK,
+} FormatMode;
+
+/*
+ * Formats the manifest at path, or standard input if path is "-", for the
+ * command-line programs (docs/reference/formatting.md). Messages are written
+ * to standard error, prefixed with program. Returns 0 on success, 1 if
+ * FORMAT_CHECK finds the file unformatted, and 2 if the file cannot be read
+ * or written or does not lex and parse. FORMAT_WRITE requires a file path.
+ */
+int formatPath(const char *program, const char *path, FormatMode mode);
+
 #endif

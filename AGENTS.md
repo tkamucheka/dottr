@@ -3,8 +3,9 @@
 ## Layout
 * Public headers: `include/dottr/` (include as `"dottr/<name>.h"`)
 * Library code: `lib/`
-* Programs: `tools/<program>/`, one directory each (`tools/dottr/` is the
-  frontend; `tools/dottr-fuzzer/` is the libFuzzer harness)
+* Programs: `tools/<program>/<program>.c`, one directory each: `dottr` (the
+  frontend), `dottr-format` (formatter), `dottr-lsp` (language server), and
+  `dottr-fuzzer` (libFuzzer harness)
 * Tests and fixtures: `test/`
 * Editor support: `utils/` (`utils/tree-sitter-dottr/` is the tree-sitter
   grammar and queries, a git submodule; clone with `--recurse-submodules` or
@@ -14,9 +15,9 @@
 
 ## Build Commands
 * Create build directory: `mkdir -p build`
-* Build tool: `cc -std=c11 -Wall -Wextra -Iinclude lib/*.c tools/dottr/dottr.c -o build/dottr`
+* Build programs: `for p in dottr dottr-format dottr-lsp; do cc -std=c11 -Wall -Wextra -Iinclude lib/*.c tools/$p/$p.c -o build/$p; done`
 * Build tests: `cc -std=c11 -Wall -Wextra -Iinclude lib/*.c test/*.c -o build/dottr-test`
-* Run tests (from the repository root, after building the tool): `build/dottr-test`
+* Run tests (from the repository root, after building the programs): `build/dottr-test`
 * Regenerate expected fixture output: `build/dottr-test --update` (review the
   resulting diff of `test/cases/*.out` before committing)
 * Build fuzzer (requires clang): `clang -std=c11 -Wall -Wextra -g -O1 -fsanitize=fuzzer,address,undefined -Iinclude lib/*.c tools/dottr-fuzzer/fuzz_manifest.c -o build/dottr-fuzzer`

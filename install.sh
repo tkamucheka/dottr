@@ -1,6 +1,7 @@
 #!/bin/sh
-# Installs dottr: downloads the source, builds it, and installs the binary
-# into ~/.local/opt/dottr/bin, with a symbolic link in ~/.local/bin.
+# Installs dottr: downloads the source, builds it, and installs the programs
+# dottr, dottr-format, and dottr-lsp into ~/.local/opt/dottr/bin, with
+# symbolic links in ~/.local/bin.
 #
 #   curl -fsSL https://raw.githubusercontent.com/tkamucheka/dottr/main/install.sh | sh
 #
@@ -15,6 +16,7 @@
 set -eu
 
 DEFAULT_REPO=https://github.com/tkamucheka/dottr.git
+PROGRAMS="dottr dottr-format dottr-lsp"
 
 say() {
     printf 'dottr-install: %s\n' "$*"
@@ -30,16 +32,16 @@ usage() {
 usage: install.sh [OPTION...]
        curl -fsSL URL | sh -s -- [OPTION...]
 
-Downloads, builds, and installs dottr.
+Downloads, builds, and installs dottr, dottr-format, and dottr-lsp.
 
 options (environment variable in parentheses):
   --repo URL     git repository to download (DOTTR_REPO)
   --ref REF      branch, tag, or commit to build (DOTTR_REF; default: main)
   --prefix DIR   installation directory (DOTTR_PREFIX;
                  default: ~/.local/opt/dottr)
-  --bin-dir DIR  directory of the dottr link (DOTTR_BIN_DIR;
+  --bin-dir DIR  directory of the links to the programs (DOTTR_BIN_DIR;
                  default: ~/.local/bin)
-  --no-link      do not create the link
+  --no-link      do not create the links
   --source DIR   build from a local checkout instead of downloading
   -h, --help     show this help
 USAGE
@@ -128,10 +130,13 @@ main() {
     cflags=${CFLAGS:--O2}
 
     have "$cc" || die "C compiler '$cc' not found; install one or set CC"
-    link_target=$bin_dir/dottr
-    if [ "$link" = yes ] && [ -e "$link_target" ] && [ ! -L "$link_target" ]
-    then
-        die "$link_target exists and is not a symbolic link; remove it or use --no-link"
+    if [ "$link" = yes ]; then
+        for program in $PROGRAMS; do
+            target=$bin_dir/$program
+            if [ -e "$target" ] && [ ! -L "$target" ]; then
+                die "$target exists and is not a symbolic link; remove it or use --no-link"
+            fi
+        done
     fi
 
     tmp=$(mktemp -d "${TMPDIR:-/tmp}/dottr-install.XXXXXX")
@@ -159,32 +164,40 @@ main() {
         fi
     fi
 
-    # 2. Build. CFLAGS are split into words on purpose.
+    # 2. Build every program before installing any. CFLAGS are split into
+    # words on purpose.
     say "building with $cc $cflags"
-    (
-        cd "$src"
-        # shellcheck disable=SC2086
-        "$cc" -std=c11 $cflags -Iinclude lib/*.c tools/dottr/dottr.c \
-            -o "$tmp/dottr"
-    ) || die "build failed"
-    "$tmp/dottr" --help >/dev/null || die "the built binary does not run"
+    for program in $PROGRAMS; do
+        (
+            cd "$src"
+            # shellcheck disable=SC2086
+            "$cc" -std=c11 $cflags -Iinclude lib/*.c \
+                "tools/$program/$program.c" -o "$tmp/$program"
+        ) || die "build of $program failed"
+        "$tmp/$program" --help >/dev/null ||
+            die "the built $program does not run"
+    done
 
-    # 3. Install. The binary is replaced by a rename, so a running dottr is
+    # 3. Install. Each binary is replaced by a rename, so a running program is
     # not affected and an interrupted install leaves the old binary in place.
     mkdir -p "$prefix/bin"
-    cp "$tmp/dottr" "$prefix/bin/.dottr.new"
-    chmod 755 "$prefix/bin/.dottr.new"
-    mv -f "$prefix/bin/.dottr.new" "$prefix/bin/dottr"
-    say "installed $prefix/bin/dottr"
+    for program in $PROGRAMS; do
+        cp "$tmp/$program" "$prefix/bin/.$program.new"
+        chmod 755 "$prefix/bin/.$program.new"
+        mv -f "$prefix/bin/.$program.new" "$prefix/bin/$program"
+        say "installed $prefix/bin/$program"
+    done
 
     # 4. Link.
     if [ "$link" = yes ]; then
         mkdir -p "$bin_dir"
-        ln -sf "$prefix/bin/dottr" "$link_target"
-        say "linked $link_target -> $prefix/bin/dottr"
+        for program in $PROGRAMS; do
+            ln -sf "$prefix/bin/$program" "$bin_dir/$program"
+            say "linked $bin_dir/$program -> $prefix/bin/$program"
+        done
         case ":${PATH:-}:" in
         *":$bin_dir:"*) ;;
-        *) say "note: $bin_dir is not in PATH; add it to run dottr" ;;
+        *) say "note: $bin_dir is not in PATH; add it to run the programs" ;;
         esac
     fi
 }

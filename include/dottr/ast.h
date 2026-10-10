@@ -26,8 +26,12 @@ typedef enum {
 
 typedef struct {
     ActionKind kind;
+    /* Position of the `shell` keyword. */
     int line;
     int column;
+    /* Position of the opening fence; its column - 1 is the margin. */
+    int fenceLine;
+    int fenceColumn;
     ShellDialect dialect;
     Template script;
 } Action;
@@ -89,6 +93,9 @@ typedef struct Unit Unit;
 struct Unit {
     Name name;
     bool isBlock;
+    /* Position of the closing `end` of a block-form unit; 0 otherwise. */
+    int endLine;
+    int endColumn;
     Stmt *stmts;
     size_t stmtCount;
     /* Resolved by semantic analysis, in needs order without duplicates. */

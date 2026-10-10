@@ -26,6 +26,8 @@
 #include "test.h"
 
 #define DOTTR_BINARY "build/dottr"
+#define FORMAT_BINARY "build/dottr-format"
+#define LSP_BINARY "build/dottr-lsp"
 #define CASES_DIR "test/cases"
 #define FIXTURE_SUFFIX ".dotfile"
 #define MAX_ARGS 32
@@ -50,35 +52,93 @@ typedef struct {
     int status;
     /* Text the combined output must contain; NULL for no requirement. */
     const char *contains;
+    /* Program to run; NULL for build/dottr. */
+    const char *program;
+    /* Standard input; NULL for /dev/null. */
+    const char *input;
 } CliCase;
 
+/* initialize, shutdown, and exit, framed for the language server. */
+#define LSP_SESSION                                                            \
+    "Content-Length: 75\r\n\r\n{\"jsonrpc\":\"2.0\",\"id\":1,\"method\":"         \
+    "\"initialize\",\"params\":{\"capabilities\":{}}}"                            \
+    "Content-Length: 44\r\n\r\n{\"jsonrpc\":\"2.0\",\"id\":2,\"method\":"         \
+    "\"shutdown\"}"                                                             \
+    "Content-Length: 33\r\n\r\n{\"jsonrpc\":\"2.0\",\"method\":\"exit\"}"
+
 static const CliCase cliCases[] = {
-    {"no arguments", {NULL}, 2, "usage: dottr check"},
-    {"help", {"--help", NULL}, 0, "usage: dottr check"},
+    {"no arguments", {NULL}, 2, "usage: dottr check", NULL, NULL},
+    {"help", {"--help", NULL}, 0, "usage: dottr check", NULL, NULL},
     {"unknown command", {"frobnicate", NULL}, 2,
-     "dottr: error: unknown command 'frobnicate'"},
+     "dottr: error: unknown command 'frobnicate'", NULL, NULL},
     {"unknown option", {"plan", "-x", NULL}, 2,
-     "dottr: error: unknown option '-x'"},
+     "dottr: error: unknown option '-x'", NULL, NULL},
     {"missing file argument", {"plan", "-f", NULL}, 2,
-     "dottr: error: option '-f' requires a file name"},
+     "dottr: error: option '-f' requires a file name", NULL, NULL},
     {"check with units", {"check", "tmux", NULL}, 2,
-     "dottr: error: check does not take unit names (found 'tmux')"},
-    {"unreadable manifest", {"check", "-f", "test/cases/does-not-exist.dotfile", NULL},
-     2, "dottr: error: cannot read test/cases/does-not-exist.dotfile: No such file"},
-    {"repository manifest", {"check", "-f", "packages.dotfile", NULL}, 0, NULL},
+     "dottr: error: check does not take unit names (found 'tmux')", NULL,
+     NULL},
+    {"unreadable manifest",
+     {"check", "-f", "test/cases/does-not-exist.dotfile", NULL}, 2,
+     "dottr: error: cannot read test/cases/does-not-exist.dotfile: No such "
+     "file",
+     NULL, NULL},
+    {"repository manifest", {"check", "-f", "packages.dotfile", NULL}, 0, NULL,
+     NULL, NULL},
     {"repository manifest plan", {"plan", "-f", "packages.dotfile", NULL}, 0,
-     "install package tmux (child unit tmux-child-tmux)"},
+     "install package tmux (child unit tmux-child-tmux)", NULL, NULL},
     {"repository manifest is formatted",
-     {"fmt", "--check", "-f", "packages.dotfile", NULL}, 0, NULL},
+     {"fmt", "--check", "-f", "packages.dotfile", NULL}, 0, NULL, NULL, NULL},
     {"fmt with units", {"fmt", "tmux", NULL}, 2,
-     "dottr: error: fmt does not take unit names (found 'tmux')"},
+     "dottr: error: fmt does not take unit names (found 'tmux')", NULL, NULL},
     {"fmt -w and --check", {"fmt", "-w", "--check", NULL}, 2,
-     "dottr: error: options '-w' and '--check' cannot be combined"},
+     "dottr: error: options '-w' and '--check' cannot be combined", NULL, NULL},
     {"fmt -w with standard input", {"fmt", "-w", "-f", "-", NULL}, 2,
-     "dottr: error: option '-w' cannot be used with standard input"},
+     "dottr: error: option '-w' cannot be used with standard input", NULL, NULL},
     {"-w outside fmt", {"check", "-w", NULL}, 2,
-     "dottr: error: unknown option '-w'"},
-    {"empty standard input", {"fmt", "-f", "-", NULL}, 0, NULL},
+     "dottr: error: unknown option '-w'", NULL, NULL},
+    {"empty standard input", {"fmt", "-f", "-", NULL}, 0, NULL, NULL, NULL},
+    {"fmt from standard input", {"fmt", "-f", "-", NULL}, 0, "pkg a\n", NULL,
+     "pkg   a\n"},
+    {"lsp session", {"lsp", NULL}, 0, "\"serverInfo\":{\"name\":\"dottr\"}",
+     NULL, LSP_SESSION},
+
+    {"dottr-format help", {"--help", NULL}, 0, "usage: dottr-format",
+     FORMAT_BINARY, NULL},
+    {"dottr-format standard input", {NULL}, 0, "pkg a\n", FORMAT_BINARY,
+     "pkg   a\n"},
+    {"dottr-format -w without files", {"-w", NULL}, 2,
+     "dottr-format: error: option '-w' requires files", FORMAT_BINARY, NULL},
+    {"dottr-format option after files", {"packages.dotfile", "-w", NULL}, 2,
+     "dottr-format: error: option '-w' must precede the files", FORMAT_BINARY,
+     NULL},
+    {"dottr-format -w and --check", {"-w", "--check", "packages.dotfile", NULL},
+     2, "options '-w' and '--check' cannot be combined", FORMAT_BINARY, NULL},
+    {"dottr-format unknown option", {"-x", NULL}, 2,
+     "dottr-format: error: unknown option '-x'", FORMAT_BINARY, NULL},
+    {"dottr-format formatted file", {"--check", "packages.dotfile", NULL}, 0,
+     NULL, FORMAT_BINARY, NULL},
+    {"dottr-format several files",
+     {"--check", "packages.dotfile", "test/cases/fmt-check-unformatted.dotfile",
+      NULL},
+     1, "dottr-format: test/cases/fmt-check-unformatted.dotfile is not "
+        "formatted",
+     FORMAT_BINARY, NULL},
+    {"dottr-format worst status",
+     {"--check", "test/cases/fmt-check-unformatted.dotfile",
+      "test/cases/does-not-exist.dotfile", NULL},
+     2, "dottr-format: error: cannot read test/cases/does-not-exist.dotfile",
+     FORMAT_BINARY, NULL},
+    {"dottr-format syntax error", {"test/cases/fmt-syntax-error.dotfile", NULL},
+     2, "fmt-syntax-error.dotfile:4:11: error:", FORMAT_BINARY, NULL},
+
+    {"dottr-lsp help", {"--help", NULL}, 0, "usage: dottr-lsp", LSP_BINARY,
+     NULL},
+    {"dottr-lsp argument", {"x", NULL}, 2,
+     "dottr-lsp: error: unexpected argument 'x'", LSP_BINARY, NULL},
+    {"dottr-lsp session", {NULL}, 0, "\"serverInfo\":{\"name\":\"dottr\"}",
+     LSP_BINARY, LSP_SESSION},
+    {"dottr-lsp end of input without exit", {NULL}, 1, NULL, LSP_BINARY, NULL},
 };
 
 typedef struct {
@@ -127,17 +187,36 @@ static char *replaceAll(const char *text, const char *from, const char *to)
     return buf.data;
 }
 
+static bool writeFile(const char *path, const char *data, size_t length)
+{
+    FILE *file = fopen(path, "wb");
+    if (!file) {
+        return false;
+    }
+    bool ok = fwrite(data, 1, length, file) == length;
+    return fclose(file) == 0 && ok;
+}
+
 /*
- * Runs build/dottr with the given arguments, HOME set to a fresh temporary
- * directory, and standard output and error captured together. Occurrences of
- * the temporary directory in the output are replaced by "$HOME".
+ * Runs a program with the given arguments, HOME set to a fresh temporary
+ * directory, standard input read from input (or /dev/null if it is NULL),
+ * and standard output and error captured together. Occurrences of the
+ * temporary directory in the output are replaced by "$HOME".
  */
-static bool runDottr(const char *const *args, RunResult *result)
+static bool runProgram(const char *program, const char *const *args,
+                       const char *input, RunResult *result)
 {
     char home[4096];
     if (!makeTempDir(home, sizeof home)) {
         fprintf(stderr, "cannot create temporary directory: %s\n",
                 strerror(errno));
+        return false;
+    }
+    /* The input file is outside HOME, so the program cannot see it there. */
+    char inputPath[4200];
+    snprintf(inputPath, sizeof inputPath, "%s.input", home);
+    if (!writeFile(inputPath, input ? input : "", input ? strlen(input) : 0)) {
+        removeTree(home);
         return false;
     }
 
@@ -161,24 +240,23 @@ static bool runDottr(const char *const *args, RunResult *result)
         dup2(pipeFds[1], STDOUT_FILENO);
         dup2(pipeFds[1], STDERR_FILENO);
         close(pipeFds[1]);
-        int devNull = open("/dev/null", O_RDONLY);
-        if (devNull >= 0) {
-            dup2(devNull, STDIN_FILENO);
-            close(devNull);
+        int inputFd = open(input ? inputPath : "/dev/null", O_RDONLY);
+        if (inputFd >= 0) {
+            dup2(inputFd, STDIN_FILENO);
+            close(inputFd);
         }
         setenv("HOME", home, 1);
         setenv("LC_ALL", "C", 1);
 
         const char *argv[MAX_ARGS + 2];
         size_t n = 0;
-        argv[n++] = DOTTR_BINARY;
+        argv[n++] = program;
         for (size_t i = 0; args[i] && n < MAX_ARGS; i++) {
             argv[n++] = args[i];
         }
         argv[n] = NULL;
-        execv(DOTTR_BINARY, (char *const *)argv);
-        fprintf(stderr, "cannot execute %s: %s\n", DOTTR_BINARY,
-                strerror(errno));
+        execv(program, (char *const *)argv);
+        fprintf(stderr, "cannot execute %s: %s\n", program, strerror(errno));
         _exit(127);
     }
 
@@ -205,24 +283,20 @@ static bool runDottr(const char *const *args, RunResult *result)
     result->length = strlen(result->output);
     strBufFree(&captured);
     removeTree(home);
+    unlink(inputPath);
     return true;
 }
 
-static bool writeFile(const char *path, const char *data, size_t length)
+static bool runDottr(const char *const *args, RunResult *result)
 {
-    FILE *file = fopen(path, "wb");
-    if (!file) {
-        return false;
-    }
-    bool ok = fwrite(data, 1, length, file) == length;
-    return fclose(file) == 0 && ok;
+    return runProgram(DOTTR_BINARY, args, NULL, result);
 }
 
 /*
- * Runs `dottr fmt -w` on a copy of an unformatted manifest in a temporary
- * directory and checks the rewritten file.
+ * Runs `dottr fmt -w` or `dottr-format -w` on a copy of an unformatted
+ * manifest in a temporary directory and checks the rewritten file.
  */
-static void runFormatWriteTest(void)
+static void runFormatWriteTest(bool standalone)
 {
     static const char input[] = "pkg   a do\nneeds b\n\n\nend\npkg b";
     static const char expected[] = "pkg a do\n  needs b\nend\npkg b\n";
@@ -241,10 +315,12 @@ static void runFormatWriteTest(void)
         return;
     }
 
-    const char *args[] = {"fmt", "-w", "-f", path, NULL};
+    const char *subcommand[] = {"fmt", "-w", "-f", path, NULL};
+    const char *program[] = {"-w", path, NULL};
     RunResult result;
-    if (!runDottr(args, &result)) {
-        TEST_FAIL("fmt -w: could not run %s", DOTTR_BINARY);
+    if (!runProgram(standalone ? FORMAT_BINARY : DOTTR_BINARY,
+                    standalone ? program : subcommand, NULL, &result)) {
+        TEST_FAIL("fmt -w: could not run the formatter");
     } else {
         char *data;
         size_t length;
@@ -270,8 +346,9 @@ static void runCliCases(void)
         const CliCase *c = &cliCases[i];
         RunResult result;
         testCount++;
-        if (!runDottr(c->argv, &result)) {
-            TEST_FAIL("cli '%s': could not run %s", c->name, DOTTR_BINARY);
+        const char *program = c->program ? c->program : DOTTR_BINARY;
+        if (!runProgram(program, c->argv, c->input, &result)) {
+            TEST_FAIL("cli '%s': could not run %s", c->name, program);
             continue;
         }
         if (result.status != c->status) {
@@ -439,18 +516,24 @@ int main(int argc, char **argv)
 {
     bool update = argc > 1 && strcmp(argv[1], "--update") == 0;
 
-    if (access(DOTTR_BINARY, X_OK) != 0) {
-        fprintf(stderr,
-                "%s not found; build it first (see AGENTS.md) and run the "
-                "tests from the repository root\n",
-                DOTTR_BINARY);
-        return 2;
+    static const char *const programs[] = {DOTTR_BINARY, FORMAT_BINARY,
+                                           LSP_BINARY};
+    for (size_t i = 0; i < sizeof programs / sizeof programs[0]; i++) {
+        if (access(programs[i], X_OK) != 0) {
+            fprintf(stderr,
+                    "%s not found; build the programs first (see AGENTS.md) "
+                    "and run the tests from the repository root\n",
+                    programs[i]);
+            return 2;
+        }
     }
 
     runLexerTests();
     runFormatTests();
+    runLspTests();
     runCliCases();
-    runFormatWriteTest();
+    runFormatWriteTest(false);
+    runFormatWriteTest(true);
     runFixtures(update);
 
     if (testFailures > 0) {

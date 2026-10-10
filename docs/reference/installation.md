@@ -1,7 +1,8 @@
 # Installation
 
-`install.sh` downloads the dottr source, builds it, and installs the binary
-into `~/.local/opt/dottr/bin`, with a symbolic link in `~/.local/bin`:
+`install.sh` downloads the dottr source, builds it, and installs the programs
+`dottr`, `dottr-format`, and `dottr-lsp` into `~/.local/opt/dottr/bin`, with
+symbolic links in `~/.local/bin`:
 
 ```
 curl -fsSL https://raw.githubusercontent.com/tkamucheka/dottr/main/install.sh | sh
@@ -32,11 +33,12 @@ curl -fsSL https://raw.githubusercontent.com/tkamucheka/dottr/main/install.sh | 
 * The script consists of one function called on its last line, so a
   partially downloaded script does nothing.
 * Work is done in a temporary directory that is removed on exit.
-* The installed binary is replaced by a rename: a running dottr is not
-  affected, and an interrupted installation leaves the previous binary in
-  place. Running the script again upgrades the installation.
-* An existing `dottr` in the link directory that is not a symbolic link is
-  not replaced; the script stops before building.
+* All programs are built before any is installed. Each installed binary is
+  replaced by a rename: a running program is not affected, and an
+  interrupted installation leaves the previous binary in place. Running the
+  script again upgrades the installation.
+* An existing file in the link directory with the name of a program that is
+  not a symbolic link is not replaced; the script stops before building.
 
 ## Private Repository
 
@@ -55,5 +57,6 @@ tree.
 ## Removal
 
 ```
-rm -rf ~/.local/opt/dottr ~/.local/bin/dottr
+rm -rf ~/.local/opt/dottr ~/.local/bin/dottr ~/.local/bin/dottr-format \
+    ~/.local/bin/dottr-lsp
 ```

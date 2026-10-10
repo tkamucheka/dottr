@@ -21,4 +21,10 @@ Unit *findUnit(const Manifest *manifest, const char *name);
 /* Whether a multi-component reference path names a built-in value. */
 bool isBuiltinReference(const char *path);
 
+/*
+ * Whether a variable name is reserved because the environment variable of
+ * that name controls how a shell starts or finds commands.
+ */
+bool isProtectedVariable(const char *name);
+
 #endif

@@ -147,7 +147,7 @@ static void checkTemplate(Analyzer *an, const Unit *unit,
     }
 }
 
-static bool isProtectedVariable(const char *name)
+bool isProtectedVariable(const char *name)
 {
     for (size_t i = 0;
          i < sizeof protectedVariables / sizeof protectedVariables[0]; i++) {

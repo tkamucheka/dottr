@@ -193,6 +193,8 @@ static bool parseShell(Parser *p, ActionList *actions, size_t *capacity)
     action->kind = ACTION_SHELL;
     action->line = shellToken->line;
     action->column = shellToken->column;
+    action->fenceLine = raw->line;
+    action->fenceColumn = raw->column;
     action->dialect = raw->dialect;
     action->script = raw->value;
     return true;
@@ -480,7 +482,9 @@ static bool parseUnit(Parser *p, Unit *unit)
         unit->stmtCount++;
     }
 
-    advance(p); /* `end` */
+    const Token *end = advance(p);
+    unit->endLine = end->line;
+    unit->endColumn = end->column;
     return expect(p, TOK_NEWLINE, "after `end`");
 }
 

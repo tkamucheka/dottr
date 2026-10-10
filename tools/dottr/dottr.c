@@ -8,6 +8,7 @@
 #include "dottr/eval.h"
 #include "dottr/format.h"
 #include "dottr/lexer.h"
+#include "dottr/lsp.h"
 #include "dottr/parser.h"
 #include "dottr/sema.h"
 #include "dottr/util.h"
@@ -28,6 +29,7 @@ static void printUsage(FILE *stream)
           "       dottr plan  [-f FILE] [UNIT...]\n"
           "       dottr apply [-f FILE] [UNIT...]\n"
           "       dottr fmt   [-f FILE] [-w | --check]\n"
+          "       dottr lsp\n"
           "\n"
           "commands:\n"
           "  check   validate the manifest\n"
@@ -37,6 +39,7 @@ static void printUsage(FILE *stream)
           "their\n"
           "          declared state; all units if none are named\n"
           "  fmt     print the manifest in canonical layout\n"
+          "  lsp     run the language server on standard input and output\n"
           "\n"
           "options:\n"
           "  -f FILE     manifest to read, or - for standard input\n"
@@ -55,53 +58,6 @@ static int usageError(const char *format, const char *argument)
     fputs("\n", stderr);
     printUsage(stderr);
     return EXIT_USAGE;
-}
-
-static bool writeFile(const char *path, const char *data, size_t length)
-{
-    FILE *file = fopen(path, "wb");
-    if (!file) {
-        return false;
-    }
-    bool ok = fwrite(data, 1, length, file) == length;
-    return fclose(file) == 0 && ok;
-}
-
-/* Implements `dottr fmt`. */
-static int runFormat(const char *source, size_t length, const char *path,
-                     bool write, bool checkOnly)
-{
-    Diag diag;
-    diagInit(&diag, path, stderr);
-    StrBuf out;
-    strBufInit(&out);
-
-    int status = 0;
-    bool changed;
-    if (!formatManifest(source, length, &out, &diag)) {
-        status = EXIT_USAGE;
-        goto done;
-    }
-    changed = out.length != length || memcmp(out.data, source, length) != 0;
-
-    if (checkOnly) {
-        if (changed) {
-            fprintf(stderr, "dottr: %s is not formatted\n", path);
-            status = 1;
-        }
-    } else if (write) {
-        if (changed && !writeFile(path, out.data, out.length)) {
-            fprintf(stderr, "dottr: error: cannot write %s: %s\n", path,
-                    strerror(errno));
-            status = EXIT_USAGE;
-        }
-    } else {
-        fwrite(out.data, 1, out.length, stdout);
-    }
-
-done:
-    strBufFree(&out);
-    return status;
 }
 
 int main(int argc, char **argv)
@@ -125,6 +81,11 @@ int main(int argc, char **argv)
         command = COMMAND_APPLY;
     } else if (strcmp(commandName, "fmt") == 0) {
         command = COMMAND_FMT;
+    } else if (strcmp(commandName, "lsp") == 0) {
+        if (argc > 2) {
+            return usageError("lsp takes no arguments (found '%s')", argv[2]);
+        }
+        return lspRun(stdin, stdout);
     } else {
         return usageError("unknown command '%s'", commandName);
     }
@@ -188,6 +149,14 @@ int main(int argc, char **argv)
                           "option '-w' cannot be used with standard input");
     }
 
+    if (command == COMMAND_FMT) {
+        free(unitNames);
+        return formatPath("dottr", path,
+                          write       ? FORMAT_WRITE
+                          : checkOnly ? FORMAT_CHECK
+                                      : FORMAT_PRINT);
+    }
+
     char *source;
     size_t length;
     if (!(fromStdin ? readStream(stdin, &source, &length)
@@ -199,13 +168,6 @@ int main(int argc, char **argv)
     }
     if (fromStdin) {
         path = "<stdin>";
-    }
-
-    if (command == COMMAND_FMT) {
-        int result = runFormat(source, length, path, write, checkOnly);
-        free(source);
-        free(unitNames);
-        return result;
     }
 
     Arena arena;

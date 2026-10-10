@@ -1,10 +1,29 @@
-# dottr fmt
+# dottr-format and dottr fmt
 
-`dottr fmt` rewrites a manifest in a canonical layout. It changes only
-whitespace: the token sequence of the manifest, the contents of its raw
-blocks, and the text of its comments are preserved.
+`dottr-format` and `dottr fmt` rewrite a manifest in a canonical layout. It
+changes only whitespace: the token sequence of the manifest, the contents of
+its raw blocks, and the text of its comments are preserved.
 
 ## 1. Command-Line Interface
+
+The formatter is available as a program of its own and as a subcommand of
+`dottr`. Both format identically.
+
+```
+dottr-format [-w | --check] [FILE...]
+```
+
+| Invocation | Effect |
+|------------|--------|
+| `dottr-format FILE...` | Writes each formatted manifest to standard output. |
+| `dottr-format -w FILE...` | Rewrites each file in place if its formatting changes. |
+| `dottr-format --check FILE...` | Writes nothing; reports each file that is not formatted. |
+
+Without FILE, or with FILE `-`, `dottr-format` reads standard input and
+writes standard output, for use by editors; `-w` requires files. Options
+precede the files. The exit status is the highest of the files: 0 on
+success, 1 if `--check` finds an unformatted file, and 2 for a usage error,
+an unreadable file, or a lexical or syntax error.
 
 ```
 dottr fmt [-f FILE] [-w | --check]
@@ -16,10 +35,10 @@ dottr fmt [-f FILE] [-w | --check]
 | `dottr fmt -w` | Rewrites the file in place if its formatting changes. |
 | `dottr fmt --check` | Writes nothing; exits with status 1 and a message if the file is not formatted. |
 
-`-f -` reads the manifest from standard input, for use by editors; it cannot
-be combined with `-w`. The exit status is 0 on success, 1 if `--check` finds
-an unformatted file, and 2 for a usage error, an unreadable file, or a
-lexical or syntax error. Semantic errors do not prevent formatting.
+`dottr fmt` formats one manifest, `packages.dotfile` unless `-f` names
+another; `-f -` reads standard input and cannot be combined with `-w`. Its
+exit status is as for `dottr-format`. Semantic errors prevent formatting in
+neither form.
 
 ## 2. Layout Rules
 
