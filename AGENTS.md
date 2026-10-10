@@ -41,6 +41,10 @@
 ## Implementation Guidelines
 * Put reference documentation of the implemented language and tools, such as
   the grammar, in `docs/reference/`.
+* Keep README files short and concise: what the project is, how to install
+  and use it, and links to the documents in `docs/reference/` for everything
+  else. A README does not repeat reference documentation. A repository
+  outside this one, such as the tree-sitter grammar, links to them by URL.
 * All documentation must be technical/academic.
 * Never use emojis in documentation, comments, or commit messages.
 
@@ -48,6 +52,6 @@
 * Do not create temporary files in the project tree. Use the system temp
   directory (or an agent scratch directory) and clean up afterwards.
 * Do not create markdown files outside
-  `docs/reference/` unless explicitly asked. No summaries, notes,
-  reports, or changelogs written as standalone files; report results in the
-  conversation instead.
+  `docs/reference/`, other than README files, unless explicitly asked.
+  No summaries, notes, reports, or changelogs written as standalone files;
+  report results in the conversation instead.
