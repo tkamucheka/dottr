@@ -1,0 +1,3 @@
+# args: fmt --check
+# status: 1
+pkg   a

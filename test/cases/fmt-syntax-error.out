@@ -1,0 +1,1 @@
+test/cases/fmt-syntax-error.dotfile:4:11: error: expected end of line after dependency list, found identifier `c`

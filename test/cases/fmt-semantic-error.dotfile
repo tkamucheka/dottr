@@ -1,0 +1,8 @@
+# args: fmt
+# status: 0
+# Semantic errors do not prevent formatting.
+pkg a do
+    needs undeclared
+  apply_if NEVER_CHECKED do
+  end
+end

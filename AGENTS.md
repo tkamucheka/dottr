@@ -22,6 +22,8 @@
 * Run fuzzer: `mkdir -p build/fuzz-corpus && build/dottr-fuzzer -dict=tools/dottr-fuzzer/dottr.dict -artifact_prefix=build/ -max_total_time=300 build/fuzz-corpus test/cases`
   (new inputs go to `build/fuzz-corpus`, crash reproducers to `build/`;
   reproduce a crash with `build/dottr-fuzzer FILE`)
+* Format a manifest: `build/dottr fmt -w -f FILE` (`--check` to verify;
+  `test/cases/*.dotfile` are fixtures and are kept as written)
 * Clean build directory: `rm -rf build`
 * Tree-sitter grammar (requires the tree-sitter CLI; run in
   `utils/tree-sitter-dottr`): regenerate the parser with

@@ -1,0 +1,5 @@
+# args: fmt
+# status: 2
+pkg a do
+  needs b c
+end

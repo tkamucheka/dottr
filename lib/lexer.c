@@ -13,6 +13,9 @@ typedef struct {
     Token *tokens;
     size_t count;
     size_t capacity;
+    Comment *comments;
+    size_t commentCount;
+    size_t commentCapacity;
 } Lexer;
 
 /* Accumulates the parts of a string literal or raw block. */
@@ -486,6 +489,9 @@ bool lexSource(Arena *arena, const char *source, size_t length,
         .tokens = NULL,
         .count = 0,
         .capacity = 0,
+        .comments = NULL,
+        .commentCount = 0,
+        .commentCapacity = 0,
     };
     bool atLineStart = true;
 
@@ -518,9 +524,18 @@ bool lexSource(Arena *arena, const char *source, size_t length,
             lx.lineStart = lx.pos;
             atLineStart = true;
         } else if (c == '#') {
+            size_t start = lx.pos;
             while (lx.pos < lx.length && source[lx.pos] != '\n') {
                 lx.pos++;
             }
+            size_t end = lx.pos;
+            if (end > start && source[end - 1] == '\r') {
+                end--;
+            }
+            lx.comments = arenaGrow(lx.arena, lx.comments, lx.commentCount,
+                                    &lx.commentCapacity, sizeof *lx.comments);
+            lx.comments[lx.commentCount++] = (Comment){
+                lx.line, columnAt(&lx, start), &source[start], end - start};
         } else if (c == '"') {
             if (!lexString(&lx)) {
                 return false;
@@ -545,6 +560,8 @@ bool lexSource(Arena *arena, const char *source, size_t length,
     emit(&lx, TOK_EOF, lx.line, columnAt(&lx, lx.pos), "", 0);
     tokens->items = lx.tokens;
     tokens->count = lx.count;
+    tokens->comments = lx.comments;
+    tokens->commentCount = lx.commentCount;
     return true;
 }
 

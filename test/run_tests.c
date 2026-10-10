@@ -68,6 +68,17 @@ static const CliCase cliCases[] = {
     {"repository manifest", {"check", "-f", "packages.dotfile", NULL}, 0, NULL},
     {"repository manifest plan", {"plan", "-f", "packages.dotfile", NULL}, 0,
      "install package tmux (child unit tmux-child-tmux)"},
+    {"repository manifest is formatted",
+     {"fmt", "--check", "-f", "packages.dotfile", NULL}, 0, NULL},
+    {"fmt with units", {"fmt", "tmux", NULL}, 2,
+     "dottr: error: fmt does not take unit names (found 'tmux')"},
+    {"fmt -w and --check", {"fmt", "-w", "--check", NULL}, 2,
+     "dottr: error: options '-w' and '--check' cannot be combined"},
+    {"fmt -w with standard input", {"fmt", "-w", "-f", "-", NULL}, 2,
+     "dottr: error: option '-w' cannot be used with standard input"},
+    {"-w outside fmt", {"check", "-w", NULL}, 2,
+     "dottr: error: unknown option '-w'"},
+    {"empty standard input", {"fmt", "-f", "-", NULL}, 0, NULL},
 };
 
 typedef struct {
@@ -197,6 +208,62 @@ static bool runDottr(const char *const *args, RunResult *result)
     return true;
 }
 
+static bool writeFile(const char *path, const char *data, size_t length)
+{
+    FILE *file = fopen(path, "wb");
+    if (!file) {
+        return false;
+    }
+    bool ok = fwrite(data, 1, length, file) == length;
+    return fclose(file) == 0 && ok;
+}
+
+/*
+ * Runs `dottr fmt -w` on a copy of an unformatted manifest in a temporary
+ * directory and checks the rewritten file.
+ */
+static void runFormatWriteTest(void)
+{
+    static const char input[] = "pkg   a do\nneeds b\n\n\nend\npkg b";
+    static const char expected[] = "pkg a do\n  needs b\nend\npkg b\n";
+    testCount++;
+
+    char dir[4096];
+    if (!makeTempDir(dir, sizeof dir)) {
+        TEST_FAIL("fmt -w: cannot create temporary directory");
+        return;
+    }
+    char path[4200];
+    snprintf(path, sizeof path, "%s/manifest.dotfile", dir);
+    if (!writeFile(path, input, sizeof input - 1)) {
+        TEST_FAIL("fmt -w: cannot write %s", path);
+        removeTree(dir);
+        return;
+    }
+
+    const char *args[] = {"fmt", "-w", "-f", path, NULL};
+    RunResult result;
+    if (!runDottr(args, &result)) {
+        TEST_FAIL("fmt -w: could not run %s", DOTTR_BINARY);
+    } else {
+        char *data;
+        size_t length;
+        if (result.status != 0 || result.length != 0) {
+            TEST_FAIL("fmt -w: status %d, output:\n%s", result.status,
+                      result.output);
+        } else if (!readFile(path, &data, &length)) {
+            TEST_FAIL("fmt -w: cannot read %s", path);
+        } else {
+            if (strcmp(data, expected) != 0) {
+                TEST_FAIL("fmt -w: file contains\n%s", data);
+            }
+            free(data);
+        }
+        free(result.output);
+    }
+    removeTree(dir);
+}
+
 static void runCliCases(void)
 {
     for (size_t i = 0; i < sizeof cliCases / sizeof cliCases[0]; i++) {
@@ -251,16 +318,6 @@ static bool readHeader(const char *source, char *storage, size_t storageSize,
 
     *status = atoi(statusLine + strlen("# status:"));
     return count > 0;
-}
-
-static bool writeFile(const char *path, const char *data, size_t length)
-{
-    FILE *file = fopen(path, "wb");
-    if (!file) {
-        return false;
-    }
-    bool ok = fwrite(data, 1, length, file) == length;
-    return fclose(file) == 0 && ok;
 }
 
 static int compareNames(const void *a, const void *b)
@@ -391,7 +448,9 @@ int main(int argc, char **argv)
     }
 
     runLexerTests();
+    runFormatTests();
     runCliCases();
+    runFormatWriteTest();
     runFixtures(update);
 
     if (testFailures > 0) {

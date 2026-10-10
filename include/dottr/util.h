@@ -3,6 +3,7 @@
 
 #include <stdbool.h>
 #include <stddef.h>
+#include <stdio.h>
 
 /*
  * Region allocator. Every allocation lives until arenaFree. Memory returned
@@ -50,6 +51,9 @@ void strBufAppendChar(StrBuf *buf, char c);
  * false and leaves errno set.
  */
 bool readFile(const char *path, char **data, size_t *length);
+
+/* Reads a stream to its end, as readFile. The stream is not closed. */
+bool readStream(FILE *file, char **data, size_t *length);
 
 void *xmalloc(size_t size);
 void *xrealloc(void *pointer, size_t size);

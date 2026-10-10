@@ -80,9 +80,20 @@ typedef struct {
     ShellDialect dialect;
 } Token;
 
+/* A comment: text from '#' to the end of the line, without the line end. */
+typedef struct {
+    int line;
+    int column;
+    const char *text;
+    size_t length;
+} Comment;
+
 typedef struct {
     Token *items;
     size_t count;
+    /* Comments in source order; not part of the token sequence. */
+    Comment *comments;
+    size_t commentCount;
 } TokenList;
 
 /*

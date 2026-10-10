@@ -6,6 +6,7 @@
 
 #include "dottr/diag.h"
 #include "dottr/eval.h"
+#include "dottr/format.h"
 #include "dottr/lexer.h"
 #include "dottr/parser.h"
 #include "dottr/sema.h"
@@ -18,6 +19,7 @@ typedef enum {
     COMMAND_CHECK,
     COMMAND_PLAN,
     COMMAND_APPLY,
+    COMMAND_FMT,
 } Command;
 
 static void printUsage(FILE *stream)
@@ -25,6 +27,7 @@ static void printUsage(FILE *stream)
     fputs("usage: dottr check [-f FILE]\n"
           "       dottr plan  [-f FILE] [UNIT...]\n"
           "       dottr apply [-f FILE] [UNIT...]\n"
+          "       dottr fmt   [-f FILE] [-w | --check]\n"
           "\n"
           "commands:\n"
           "  check   validate the manifest\n"
@@ -33,9 +36,14 @@ static void printUsage(FILE *stream)
           "  apply   bring the selected units, and the units they need, to "
           "their\n"
           "          declared state; all units if none are named\n"
+          "  fmt     print the manifest in canonical layout\n"
           "\n"
           "options:\n"
-          "  -f FILE     manifest to read (default: " DEFAULT_MANIFEST ")\n"
+          "  -f FILE     manifest to read, or - for standard input\n"
+          "              (default: " DEFAULT_MANIFEST ")\n"
+          "  -w          fmt: rewrite the file instead of printing it\n"
+          "  --check     fmt: print nothing; exit 1 if the file is not "
+          "formatted\n"
           "  -h, --help  show this help\n",
           stream);
 }
@@ -47,6 +55,53 @@ static int usageError(const char *format, const char *argument)
     fputs("\n", stderr);
     printUsage(stderr);
     return EXIT_USAGE;
+}
+
+static bool writeFile(const char *path, const char *data, size_t length)
+{
+    FILE *file = fopen(path, "wb");
+    if (!file) {
+        return false;
+    }
+    bool ok = fwrite(data, 1, length, file) == length;
+    return fclose(file) == 0 && ok;
+}
+
+/* Implements `dottr fmt`. */
+static int runFormat(const char *source, size_t length, const char *path,
+                     bool write, bool checkOnly)
+{
+    Diag diag;
+    diagInit(&diag, path, stderr);
+    StrBuf out;
+    strBufInit(&out);
+
+    int status = 0;
+    bool changed;
+    if (!formatManifest(source, length, &out, &diag)) {
+        status = EXIT_USAGE;
+        goto done;
+    }
+    changed = out.length != length || memcmp(out.data, source, length) != 0;
+
+    if (checkOnly) {
+        if (changed) {
+            fprintf(stderr, "dottr: %s is not formatted\n", path);
+            status = 1;
+        }
+    } else if (write) {
+        if (changed && !writeFile(path, out.data, out.length)) {
+            fprintf(stderr, "dottr: error: cannot write %s: %s\n", path,
+                    strerror(errno));
+            status = EXIT_USAGE;
+        }
+    } else {
+        fwrite(out.data, 1, out.length, stdout);
+    }
+
+done:
+    strBufFree(&out);
+    return status;
 }
 
 int main(int argc, char **argv)
@@ -68,11 +123,15 @@ int main(int argc, char **argv)
         command = COMMAND_PLAN;
     } else if (strcmp(commandName, "apply") == 0) {
         command = COMMAND_APPLY;
+    } else if (strcmp(commandName, "fmt") == 0) {
+        command = COMMAND_FMT;
     } else {
         return usageError("unknown command '%s'", commandName);
     }
 
     const char *path = DEFAULT_MANIFEST;
+    bool write = false;
+    bool checkOnly = false;
     const char **unitNames = xmalloc((size_t)argc * sizeof *unitNames);
     size_t unitCount = 0;
     bool optionsEnded = false;
@@ -87,6 +146,12 @@ int main(int argc, char **argv)
                 return usageError("option '%s' requires a file name", arg);
             }
             path = argv[++i];
+        } else if (!optionsEnded && command == COMMAND_FMT &&
+                   strcmp(arg, "-w") == 0) {
+            write = true;
+        } else if (!optionsEnded && command == COMMAND_FMT &&
+                   strcmp(arg, "--check") == 0) {
+            checkOnly = true;
         } else if (!optionsEnded &&
                    (strcmp(arg, "-h") == 0 || strcmp(arg, "--help") == 0)) {
             free(unitNames);
@@ -100,20 +165,47 @@ int main(int argc, char **argv)
         }
     }
 
-    if (command == COMMAND_CHECK && unitCount > 0) {
-        int result = usageError("check does not take unit names (found '%s')",
+    if ((command == COMMAND_CHECK || command == COMMAND_FMT) &&
+        unitCount > 0) {
+        int result = usageError(command == COMMAND_CHECK
+                                    ? "check does not take unit names "
+                                      "(found '%s')"
+                                    : "fmt does not take unit names "
+                                      "(found '%s')",
                                 unitNames[0]);
         free(unitNames);
         return result;
     }
+    bool fromStdin = strcmp(path, "-") == 0;
+    if (write && checkOnly) {
+        free(unitNames);
+        return usageError("%s",
+                          "options '-w' and '--check' cannot be combined");
+    }
+    if (write && fromStdin) {
+        free(unitNames);
+        return usageError("%s",
+                          "option '-w' cannot be used with standard input");
+    }
 
     char *source;
     size_t length;
-    if (!readFile(path, &source, &length)) {
-        fprintf(stderr, "dottr: error: cannot read %s: %s\n", path,
-                strerror(errno));
+    if (!(fromStdin ? readStream(stdin, &source, &length)
+                    : readFile(path, &source, &length))) {
+        fprintf(stderr, "dottr: error: cannot read %s: %s\n",
+                fromStdin ? "standard input" : path, strerror(errno));
         free(unitNames);
         return EXIT_USAGE;
+    }
+    if (fromStdin) {
+        path = "<stdin>";
+    }
+
+    if (command == COMMAND_FMT) {
+        int result = runFormat(source, length, path, write, checkOnly);
+        free(source);
+        free(unitNames);
+        return result;
     }
 
     Arena arena;

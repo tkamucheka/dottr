@@ -159,7 +159,15 @@ bool readFile(const char *path, char **data, size_t *length)
     if (!file) {
         return false;
     }
+    bool ok = readStream(file, data, length);
+    int savedErrno = errno;
+    fclose(file);
+    errno = savedErrno;
+    return ok;
+}
 
+bool readStream(FILE *file, char **data, size_t *length)
+{
     StrBuf buf;
     strBufInit(&buf);
     char chunk[8192];
@@ -168,10 +176,8 @@ bool readFile(const char *path, char **data, size_t *length)
         strBufAppend(&buf, chunk, count);
     }
 
-    bool failed = ferror(file);
-    int savedErrno = errno;
-    fclose(file);
-    if (failed) {
+    if (ferror(file)) {
+        int savedErrno = errno;
         strBufFree(&buf);
         errno = savedErrno ? savedErrno : EIO;
         return false;

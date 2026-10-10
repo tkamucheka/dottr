@@ -12,5 +12,6 @@ void testFail(const char *file, int line, const char *format, ...)
 #define TEST_FAIL(...) testFail(__FILE__, __LINE__, __VA_ARGS__)
 
 void runLexerTests(void);
+void runFormatTests(void);
 
 #endif
