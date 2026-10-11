@@ -82,3 +82,7 @@ build/dottr-test
 
 The editor support is developed in the submodules `utils/tree-sitter-dottr`
 and `utils/vscode-dottr`.
+
+## License
+
+MIT; see [LICENSE](LICENSE).
