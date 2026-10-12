@@ -1,0 +1,162 @@
+#include "dottr/package.h"
+
+#include <stdio.h>
+#include <string.h>
+
+#include "dottr/host.h"
+
+OperatingSystem hostOperatingSystem(void)
+{
+#if defined(_WIN32)
+    return OS_WINDOWS;
+#elif defined(__APPLE__)
+    return OS_MACOS;
+#elif defined(__linux__)
+    return OS_LINUX;
+#else
+    return OS_OTHER;
+#endif
+}
+
+const char *operatingSystemName(OperatingSystem os)
+{
+    switch (os) {
+    case OS_LINUX: return "linux";
+    case OS_MACOS: return "macos";
+    case OS_WINDOWS: return "windows";
+    case OS_OTHER: break;
+    }
+    return "an unsupported operating system";
+}
+
+static const struct {
+    PackageManager manager;
+    const char *name;
+    OperatingSystem os;
+} managers[] = {
+    {PACKAGE_MANAGER_PACMAN, "pacman", OS_LINUX},
+    {PACKAGE_MANAGER_APT, "apt", OS_LINUX},
+    {PACKAGE_MANAGER_DNF, "dnf", OS_LINUX},
+    {PACKAGE_MANAGER_BREW, "brew", OS_MACOS},
+    {PACKAGE_MANAGER_WINGET, "winget", OS_WINDOWS},
+};
+
+#define MANAGER_COUNT (sizeof managers / sizeof managers[0])
+
+const char *packageManagerName(PackageManager manager)
+{
+    for (size_t i = 0; i < MANAGER_COUNT; i++) {
+        if (managers[i].manager == manager) {
+            return managers[i].name;
+        }
+    }
+    return "none";
+}
+
+PackageManager packageManagerFromName(const char *name)
+{
+    for (size_t i = 0; i < MANAGER_COUNT; i++) {
+        if (strcmp(managers[i].name, name) == 0) {
+            return managers[i].manager;
+        }
+    }
+    return PACKAGE_MANAGER_NONE;
+}
+
+OperatingSystem packageManagerSystem(PackageManager manager)
+{
+    for (size_t i = 0; i < MANAGER_COUNT; i++) {
+        if (managers[i].manager == manager) {
+            return managers[i].os;
+        }
+    }
+    return OS_OTHER;
+}
+
+PackageManager detectPackageManager(void)
+{
+    switch (hostOperatingSystem()) {
+    case OS_MACOS: return PACKAGE_MANAGER_BREW;
+    case OS_WINDOWS: return PACKAGE_MANAGER_WINGET;
+    case OS_LINUX:
+        if (hostCommandExists("pacman")) {
+            return PACKAGE_MANAGER_PACMAN;
+        }
+        if (hostCommandExists("apt-get")) {
+            return PACKAGE_MANAGER_APT;
+        }
+        if (hostCommandExists("dnf")) {
+            return PACKAGE_MANAGER_DNF;
+        }
+        return PACKAGE_MANAGER_NONE;
+    case OS_OTHER: break;
+    }
+    return PACKAGE_MANAGER_NONE;
+}
+
+bool packageInstallCommand(PackageManager manager, const char *package,
+                           bool root, const char **argv, char *message,
+                           size_t messageSize)
+{
+    size_t n = 0;
+    switch (manager) {
+    case PACKAGE_MANAGER_PACMAN:
+    case PACKAGE_MANAGER_APT:
+    case PACKAGE_MANAGER_DNF:
+        if (!root) {
+            argv[n++] = "sudo";
+        }
+        break;
+    case PACKAGE_MANAGER_BREW:
+        if (root) {
+            snprintf(message, messageSize,
+                     "Homebrew does not install packages as root; run "
+                     "dottr as a regular user");
+            return false;
+        }
+        break;
+    case PACKAGE_MANAGER_WINGET: break;
+    case PACKAGE_MANAGER_NONE:
+        snprintf(message, messageSize,
+                 "no supported package manager was found; dottr supports "
+                 "pacman, apt, and dnf on Linux, brew on macOS, and winget "
+                 "on Windows");
+        return false;
+    }
+
+    switch (manager) {
+    case PACKAGE_MANAGER_PACMAN:
+        argv[n++] = "pacman";
+        argv[n++] = "-S";
+        argv[n++] = "--needed";
+        argv[n++] = "--noconfirm";
+        break;
+    case PACKAGE_MANAGER_APT:
+        argv[n++] = "apt-get";
+        argv[n++] = "install";
+        argv[n++] = "-y";
+        break;
+    case PACKAGE_MANAGER_DNF:
+        argv[n++] = "dnf";
+        argv[n++] = "install";
+        argv[n++] = "-y";
+        break;
+    case PACKAGE_MANAGER_BREW:
+        argv[n++] = "brew";
+        argv[n++] = "install";
+        break;
+    case PACKAGE_MANAGER_WINGET:
+        argv[n++] = "winget";
+        argv[n++] = "install";
+        argv[n++] = "--exact";
+        argv[n++] = "--silent";
+        argv[n++] = "--accept-package-agreements";
+        argv[n++] = "--accept-source-agreements";
+        argv[n++] = "--id";
+        break;
+    case PACKAGE_MANAGER_NONE: break;
+    }
+    argv[n++] = package;
+    argv[n] = NULL;
+    return true;
+}

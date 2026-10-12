@@ -1,0 +1,8 @@
+unit git
+  install package git: sudo dnf install -y git
+
+unit tree-sitter-cli
+  install package tree-sitter-cli: sudo dnf install -y tree-sitter-cli
+
+unit tmux
+  install package tmux (child unit tmux-child-tmux): sudo dnf install -y tmux

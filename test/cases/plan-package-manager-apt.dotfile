@@ -1,0 +1,9 @@
+# args: plan --package-manager apt
+# status: 0
+# Package installation commands of apt.
+pkg git
+pkg "tree-sitter-cli"
+
+pkg tmux do
+  pkg tmux
+end

@@ -5,6 +5,7 @@
 #include <string.h>
 
 #include "dottr/host.h"
+#include "dottr/package.h"
 #include "dottr/util.h"
 
 typedef enum {
@@ -33,6 +34,7 @@ typedef struct {
 typedef struct {
     const Manifest *manifest;
     EvalMode mode;
+    PackageManager manager;
     Diag *diag;
     Arena arena;
 } Evaluator;
@@ -134,21 +136,6 @@ static bool evaluatePredicate(PredicateKind kind, const char *value)
     return false;
 }
 
-/* Builds the package manager command. */
-static void packageCommand(const char *package, const char **argv)
-{
-    size_t n = 0;
-    if (!hostIsRoot()) {
-        argv[n++] = "sudo";
-    }
-    argv[n++] = "pacman";
-    argv[n++] = "-S";
-    argv[n++] = "--needed";
-    argv[n++] = "--noconfirm";
-    argv[n++] = package;
-    argv[n] = NULL;
-}
-
 static void printCommand(const char **argv)
 {
     for (size_t i = 0; argv[i]; i++) {
@@ -159,8 +146,14 @@ static void printCommand(const char **argv)
 static bool installPackage(Evaluator *ev, const char *package,
                            const char *childName, int line, int column)
 {
-    const char *argv[8];
-    packageCommand(package, argv);
+    const char *argv[PACKAGE_COMMAND_MAX];
+    char message[256];
+    if (!packageInstallCommand(ev->manager, package, hostIsRoot(), argv,
+                               message, sizeof message)) {
+        diagError(ev->diag, line, column, "cannot install package `%s`: %s",
+                  package, message);
+        return false;
+    }
 
     if (ev->mode == EVAL_PLAN) {
         printf("  install package %s", package);
@@ -417,9 +410,10 @@ static void visit(const Manifest *manifest, const Unit *unit, bool *visited,
 }
 
 int evaluateManifest(const Manifest *manifest, EvalMode mode,
-                     Unit *const *selected, size_t selectedCount, Diag *diag)
+                     PackageManager manager, Unit *const *selected,
+                     size_t selectedCount, Diag *diag)
 {
-    Evaluator ev = {manifest, mode, diag, {0}};
+    Evaluator ev = {manifest, mode, manager, diag, {0}};
     arenaInit(&ev.arena);
 
     size_t total = manifest->count;

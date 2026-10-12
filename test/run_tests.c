@@ -85,8 +85,21 @@ static const CliCase cliCases[] = {
      NULL, NULL},
     {"repository manifest", {"check", "-f", "manifest.dotfile", NULL}, 0, NULL,
      NULL, NULL},
-    {"repository manifest plan", {"plan", "-f", "manifest.dotfile", NULL}, 0,
-     "install package tmux (child unit tmux-child-tmux)", NULL, NULL},
+    {"repository manifest plan",
+     {"plan", "--package-manager", "pacman", "-f", "manifest.dotfile", NULL},
+     0, "install package tmux (child unit tmux-child-tmux)", NULL, NULL},
+    {"unknown package manager", {"plan", "--package-manager", "yum", NULL}, 2,
+     "dottr: error: unknown package manager 'yum'", NULL, NULL},
+    {"missing package manager", {"plan", "--package-manager", NULL}, 2,
+     "dottr: error: option '--package-manager' requires a package manager",
+     NULL, NULL},
+    {"package manager outside plan and apply",
+     {"check", "--package-manager", "apt", NULL}, 2,
+     "dottr: error: unknown option '--package-manager'", NULL, NULL},
+    {"apply with the package manager of another system",
+     {"apply", "--package-manager", "winget", "-f",
+      "test/cases/apply-empty.dotfile", NULL},
+     2, "dottr: error: package manager 'winget' is for windows", NULL, NULL},
     {"repository manifest is formatted",
      {"fmt", "--check", "-f", "manifest.dotfile", NULL}, 0, NULL, NULL, NULL},
     {"fmt with units", {"fmt", "tmux", NULL}, 2,
@@ -427,6 +440,11 @@ static void runFixture(const char *name, bool update)
         free(source);
         return;
     }
+    if (geteuid() == 0 && strstr(name, "brew")) {
+        /* Homebrew does not run as root, so its plan is an error. */
+        free(source);
+        return;
+    }
     size_t argCount = 0;
     while (args[argCount]) {
         argCount++;
@@ -459,8 +477,7 @@ static void runFixture(const char *name, bool update)
         } else {
             if (geteuid() == 0) {
                 /* Expected outputs are recorded without root privileges. */
-                char *unprivileged = replaceAll(expected, "sudo pacman",
-                                                "pacman");
+                char *unprivileged = replaceAll(expected, ": sudo ", ": ");
                 free(expected);
                 expected = unprivileged;
                 expectedLength = strlen(expected);
@@ -531,6 +548,7 @@ int main(int argc, char **argv)
     runLexerTests();
     runFormatTests();
     runLspTests();
+    runPackageTests();
     runCliCases();
     runFormatWriteTest(false);
     runFormatWriteTest(true);

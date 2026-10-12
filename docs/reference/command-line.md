@@ -12,8 +12,8 @@ dottr consists of three programs:
 
 ```
 dottr check [-f FILE]
-dottr plan  [-f FILE] [UNIT...]
-dottr apply [-f FILE] [UNIT...]
+dottr plan  [-f FILE] [--package-manager NAME] [UNIT...]
+dottr apply [-f FILE] [--package-manager NAME] [UNIT...]
 dottr fmt   [-f FILE] [-w | --check]
 dottr lsp
 ```
@@ -29,6 +29,7 @@ dottr lsp
 | Option | Meaning |
 |--------|---------|
 | `-f FILE` | The manifest to read; `-` reads standard input. Default: `packages.dotfile` in the current directory. |
+| `--package-manager NAME` | `plan` and `apply` only: install packages with `NAME`, one of `pacman`, `apt`, `dnf`, `brew`, or `winget` (Section 1.3). Default: the package manager of the host. |
 | `-w` | `fmt` only: rewrite the file instead of printing it. |
 | `--check` | `fmt` only: print nothing, and exit with status 1 if the file is not formatted. |
 | `-h`, `--help` | Print a summary of the usage. |
@@ -83,6 +84,16 @@ unit tmux
       git clone https://github.com/tmux-plugins/tpm "$TPM_DIR"
 ```
 
+The commands are those of the package manager of the host
+([The Manifest Language](language.md), Section 2.1). With
+`--package-manager`, `plan` shows the commands of another package manager,
+for example those of a macOS machine with `--package-manager brew`, or of a
+Windows machine with `--package-manager winget`:
+
+```
+  install package git: winget install --exact --silent --accept-package-agreements --accept-source-agreements --id git
+```
+
 Checks are evaluated against the current state of the host, which they only
 read. Since `plan` performs no actions, a check that follows an action in a
 unit reports the state before that action; `apply` may observe a different
@@ -106,8 +117,9 @@ packages.dotfile:14:5: error: shell block exited with status 1
 summary: 1 satisfied, 1 failed, 1 skipped
 ```
 
-Package installations run `sudo pacman`, which may ask for a password. Shell
-scripts inherit the standard streams of dottr and may be interactive. A unit
+On Linux, package installations run the package manager with `sudo`, which
+may ask for a password. `apply` accepts only a package manager of the host's
+operating system in `--package-manager`. Shell scripts inherit the standard streams of dottr and may be interactive. A unit
 stops at its first failing statement; units that need it are skipped, and the
 remaining units are still applied.
 
@@ -116,8 +128,8 @@ remaining units are still applied.
 | Status | `check` | `plan` | `apply` |
 |--------|---------|--------|---------|
 | 0 | The manifest is valid. | The plan was printed. | Every selected unit was satisfied. |
-| 1 | | A value could not be computed, such as an unknown home directory. | A unit failed or was skipped. |
-| 2 | Usage error, unreadable manifest, or invalid manifest. | As for `check`, or an undeclared unit name. | As for `plan`. |
+| 1 | | A value could not be computed, such as an unknown home directory, or no package manager was found. | A unit failed or was skipped. |
+| 2 | Usage error, unreadable manifest, or invalid manifest. | As for `check`, an undeclared unit name, or an unknown package manager. | As for `plan`, or a package manager of another operating system. |
 
 ## 2. dottr-format
 

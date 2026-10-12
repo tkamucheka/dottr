@@ -1,0 +1,9 @@
+# args: plan --package-manager dnf
+# status: 0
+# Package installation commands of dnf.
+pkg git
+pkg "tree-sitter-cli"
+
+pkg tmux do
+  pkg tmux
+end

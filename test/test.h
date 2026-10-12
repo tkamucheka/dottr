@@ -14,5 +14,6 @@ void testFail(const char *file, int line, const char *format, ...)
 void runLexerTests(void);
 void runFormatTests(void);
 void runLspTests(void);
+void runPackageTests(void);
 
 #endif

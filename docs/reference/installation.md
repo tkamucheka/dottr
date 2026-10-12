@@ -7,8 +7,8 @@ privileges are required.
 
 ## Requirements
 
-* Linux. `dottr apply` installs packages with pacman and therefore requires
-  Arch Linux or a derivative; the other commands do not use pacman.
+* Linux or macOS. `dottr apply` installs packages with pacman, apt, or dnf
+  on Linux, and with Homebrew on macOS.
 * A C11 compiler: `$CC`, by default `cc`.
 * git, or, for a repository on GitHub, curl or wget and tar.
 

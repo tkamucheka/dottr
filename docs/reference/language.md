@@ -72,16 +72,29 @@ The statements of a block unit are:
 
 ### 2.1 Packages
 
-dottr installs packages with pacman, which makes it specific to Arch Linux
-and its derivatives. A package `NAME` is installed with
+dottr installs packages with the package manager of the host:
 
-```
-sudo pacman -S --needed --noconfirm NAME
-```
+| Package manager | Systems | Command |
+|-----------------|---------|---------|
+| `pacman` | Arch Linux and derivatives | `sudo pacman -S --needed --noconfirm NAME` |
+| `apt` | Debian, Ubuntu, and derivatives | `sudo apt-get install -y NAME` |
+| `dnf` | Fedora, RHEL, and derivatives | `sudo dnf install -y NAME` |
+| `brew` | macOS | `brew install NAME` |
 
-without `sudo` when dottr runs as root. `--needed` makes the installation of
-an installed package a no-op, so applying a package unit again changes
-nothing.
+On Linux, dottr uses the first of `pacman`, `apt-get`, and `dnf` found in
+`PATH`; on macOS, Homebrew. `sudo` is omitted when dottr runs as root.
+Homebrew does not install packages as root, so on macOS dottr runs as a
+regular user. The option `--package-manager` selects another package manager
+([Command Line](command-line.md)).
+
+Each command treats a package that is already installed as success, so
+applying a package unit again changes nothing. dottr does not refresh the
+package index, for example with `apt-get update`; a manifest that requires it
+does so in a shell block.
+
+`NAME` is the name of the package for the package manager, and names differ
+between package managers, for example `fd` with pacman and `fd-find` with
+apt.
 
 Inside a block unit, `pkg NAME` installs the package `NAME` at that point of
 the body. It is commonly used to install the package that a block unit
@@ -282,8 +295,8 @@ block does not affect another.
 ## 7. Idempotence
 
 A manifest is meant to be applied repeatedly, each time bringing the host to
-the declared state. Package units are idempotent through pacman's
-`--needed`. Block units are idempotent if their actions are: work that must
+the declared state. Package units are idempotent, since installing an
+installed package changes nothing. Block units are idempotent if their actions are: work that must
 happen once, such as cloning a repository, is gated with `check` and
 `apply_if` or `apply_unless`, and work that is safe to repeat, such as
 updating a clone, runs in the other branch.

@@ -1,0 +1,8 @@
+unit git
+  install package git: winget install --exact --silent --accept-package-agreements --accept-source-agreements --id git
+
+unit tree-sitter-cli
+  install package tree-sitter-cli: winget install --exact --silent --accept-package-agreements --accept-source-agreements --id tree-sitter-cli
+
+unit tmux
+  install package tmux (child unit tmux-child-tmux): winget install --exact --silent --accept-package-agreements --accept-source-agreements --id tmux

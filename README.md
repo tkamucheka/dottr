@@ -32,8 +32,8 @@ end
   environment.
 * A formatter, a language server, and editor support for VS Code and Neovim.
 
-dottr installs packages with pacman and targets Arch Linux and its
-derivatives.
+dottr runs on Linux and macOS and installs packages with the system package
+manager: pacman, apt, or dnf on Linux, and Homebrew on macOS.
 
 ## Installation
 

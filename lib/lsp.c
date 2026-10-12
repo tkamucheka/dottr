@@ -859,7 +859,7 @@ static const struct {
     const char *text;
 } keywordDocs[] = {
     {"pkg", "`pkg NAME` declares a unit that installs the package NAME with "
-            "pacman. `pkg NAME do ... end` declares a unit satisfied by "
+            "the system package manager. `pkg NAME do ... end` declares a unit satisfied by "
             "evaluating its body. Inside a unit, `pkg NAME` installs a "
             "package as a child unit."},
     {"do", "Opens a block, closed by `end`."},
@@ -1016,7 +1016,7 @@ static void hoverUnit(StrBuf *text, const Document *doc, const Occurrence *o)
     } else {
         strBufAppendStr(text, "Installs the package ");
         appendCode(text, unit->name.text, strlen(unit->name.text));
-        appendLineNumber(text, " with pacman. Declared on line ",
+        appendLineNumber(text, " with the system package manager. Declared on line ",
                          unit->name.line);
         strBufAppendChar(text, '.');
     }
@@ -1081,8 +1081,8 @@ static void hoverPackage(StrBuf *text, const Occurrence *o)
     appendCode(text, child, strlen(child));
     strBufAppendStr(text, "\n\nInstalls the package ");
     appendCode(text, o->name, strlen(o->name));
-    strBufAppendStr(text, " with pacman. Child units cannot be named in "
-                          "`needs`.");
+    strBufAppendStr(text, " with the system package manager. Child units "
+                          "cannot be named in `needs`.");
 }
 
 /* The keyword token at an offset, or NULL. */

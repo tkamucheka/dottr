@@ -9,6 +9,7 @@
 #include "dottr/format.h"
 #include "dottr/lexer.h"
 #include "dottr/lsp.h"
+#include "dottr/package.h"
 #include "dottr/parser.h"
 #include "dottr/sema.h"
 #include "dottr/util.h"
@@ -26,8 +27,8 @@ typedef enum {
 static void printUsage(FILE *stream)
 {
     fputs("usage: dottr check [-f FILE]\n"
-          "       dottr plan  [-f FILE] [UNIT...]\n"
-          "       dottr apply [-f FILE] [UNIT...]\n"
+          "       dottr plan  [-f FILE] [--package-manager NAME] [UNIT...]\n"
+          "       dottr apply [-f FILE] [--package-manager NAME] [UNIT...]\n"
           "       dottr fmt   [-f FILE] [-w | --check]\n"
           "       dottr lsp\n"
           "\n"
@@ -44,6 +45,10 @@ static void printUsage(FILE *stream)
           "options:\n"
           "  -f FILE     manifest to read, or - for standard input\n"
           "              (default: " DEFAULT_MANIFEST ")\n"
+          "  --package-manager NAME\n"
+          "              plan, apply: install packages with NAME, one of "
+          "pacman, apt,\n"
+          "              dnf, brew, or winget (default: detected)\n"
           "  -w          fmt: rewrite the file instead of printing it\n"
           "  --check     fmt: print nothing; exit 1 if the file is not "
           "formatted\n"
@@ -91,6 +96,7 @@ int main(int argc, char **argv)
     }
 
     const char *path = DEFAULT_MANIFEST;
+    const char *managerName = NULL;
     bool write = false;
     bool checkOnly = false;
     const char **unitNames = xmalloc((size_t)argc * sizeof *unitNames);
@@ -107,6 +113,15 @@ int main(int argc, char **argv)
                 return usageError("option '%s' requires a file name", arg);
             }
             path = argv[++i];
+        } else if (!optionsEnded &&
+                   (command == COMMAND_PLAN || command == COMMAND_APPLY) &&
+                   strcmp(arg, "--package-manager") == 0) {
+            if (i + 1 >= argc) {
+                free(unitNames);
+                return usageError("option '%s' requires a package manager",
+                                  arg);
+            }
+            managerName = argv[++i];
         } else if (!optionsEnded && command == COMMAND_FMT &&
                    strcmp(arg, "-w") == 0) {
             write = true;
@@ -147,6 +162,27 @@ int main(int argc, char **argv)
         free(unitNames);
         return usageError("%s",
                           "option '-w' cannot be used with standard input");
+    }
+
+    PackageManager manager = PACKAGE_MANAGER_NONE;
+    if (managerName) {
+        manager = packageManagerFromName(managerName);
+        if (manager == PACKAGE_MANAGER_NONE) {
+            free(unitNames);
+            return usageError("unknown package manager '%s'; expected "
+                              "pacman, apt, dnf, brew, or winget",
+                              managerName);
+        }
+        OperatingSystem system = packageManagerSystem(manager);
+        if (command == COMMAND_APPLY && system != hostOperatingSystem()) {
+            fprintf(stderr,
+                    "dottr: error: package manager '%s' is for %s; apply "
+                    "runs on %s\n",
+                    managerName, operatingSystemName(system),
+                    operatingSystemName(hostOperatingSystem()));
+            free(unitNames);
+            return EXIT_USAGE;
+        }
     }
 
     if (command == COMMAND_FMT) {
@@ -201,9 +237,12 @@ int main(int argc, char **argv)
         }
     }
 
+    if (!managerName) {
+        manager = detectPackageManager();
+    }
     status = evaluateManifest(&manifest,
                               command == COMMAND_PLAN ? EVAL_PLAN : EVAL_APPLY,
-                              selected, unitCount, &diag);
+                              manager, selected, unitCount, &diag);
 
 done:
     free(selected);

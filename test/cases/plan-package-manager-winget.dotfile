@@ -1,0 +1,9 @@
+# args: plan --package-manager winget
+# status: 0
+# Package installation commands of winget.
+pkg git
+pkg "tree-sitter-cli"
+
+pkg tmux do
+  pkg tmux
+end
