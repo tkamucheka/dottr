@@ -43,8 +43,8 @@ neither form.
 ## 2. Layout Rules
 
 1. **Indentation.** Two spaces per level. The body of a unit, of an `apply`,
-   `apply_if`, or `apply_unless`, of an `else` branch, and of a `shell` block
-   is one level deeper than the line that opens it. `else` and `end` are at
+   `apply_if`, or `apply_unless`, of an `else` branch, of an `on` block, and
+   of a `shell` block is one level deeper than the line that opens it. `else` and `end` are at
    the level of the line that opens their construct.
 2. **Spacing within a line.** Tokens are separated by one space, except that
    no space precedes `,`. String literals are reproduced exactly.

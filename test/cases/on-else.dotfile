@@ -1,0 +1,10 @@
+# args: check
+# status: 2
+# `else` is not part of `on` blocks.
+pkg a do
+  on linux do
+    local X = "x"
+  else
+    local X = "y"
+  end
+end

@@ -1,0 +1,28 @@
+# args: check
+# status: 2
+# Errors that occur on some systems are reported once, with those systems.
+on macos do
+  pkg m
+end
+
+on linux do
+  pkg twice
+end
+
+on apt do
+  pkg twice
+end
+
+pkg a do
+  needs m
+  on windows do
+    local X = "x"
+  end
+  check directory X
+  on linux do
+    local Y = "y"
+  end
+  on apt do
+    local Y = "z"
+  end
+end

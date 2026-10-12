@@ -1,5 +1,7 @@
 #include "dottr/sema.h"
 
+#include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
 
 static const char *const builtinReferences[] = {
@@ -31,6 +33,8 @@ typedef struct {
     Arena *arena;
     Diag *diag;
     const Manifest *manifest;
+    /* The whole manifest, of which manifest is the view of one system. */
+    const Manifest *full;
 } Analyzer;
 
 static bool nameSetHas(const NameSet *set, const char *name)
@@ -230,6 +234,15 @@ static void resolveDependencies(Analyzer *an, Unit *unit)
         for (size_t j = 0; j < stmt->as.needs.count; j++) {
             const Name *name = &stmt->as.needs.names[j];
             Unit *target = findUnit(an->manifest, name->text);
+            const Unit *elsewhere =
+                target ? NULL : findUnit(an->full, name->text);
+            if (elsewhere) {
+                diagError(an->diag, name->line, name->column,
+                          "unit `%s` is not declared on this system; its "
+                          "declaration on line %d is inside an `on` block",
+                          name->text, elsewhere->name.line);
+                continue;
+            }
             if (!target) {
                 const char *quote = isIdentifier(name->text) ? "" : "\"";
                 diagError(an->diag, name->line, name->column,
@@ -294,9 +307,11 @@ static bool findCycle(Analyzer *an, Unit *unit, VisitState *states,
     return false;
 }
 
-bool analyzeManifest(Arena *arena, Manifest *manifest, Diag *diag)
+/* Applies the version 1 rules to a manifest without `on` blocks. */
+static bool analyzeView(Arena *arena, Manifest *manifest,
+                        const Manifest *full, Diag *diag)
 {
-    Analyzer an = {arena, diag, manifest};
+    Analyzer an = {arena, diag, manifest, full};
     int errorsBefore = diag->errorCount;
 
     for (size_t i = 0; i < manifest->count; i++) {
@@ -330,4 +345,181 @@ bool analyzeManifest(Arena *arena, Manifest *manifest, Diag *diag)
     }
 
     return diag->errorCount == errorsBefore;
+}
+
+static bool appliesOn(SystemSet item, SystemSet systems)
+{
+    return (item & systems) == systems;
+}
+
+/*
+ * Builds the view of manifest on systems: copies of the units, statements,
+ * and actions that apply on every one of systems. Names, templates, and
+ * other contents are shared with manifest.
+ */
+static void buildView(Arena *arena, const Manifest *manifest,
+                      SystemSet systems, Manifest *view)
+{
+    memset(view, 0, sizeof *view);
+    view->units = arenaAlloc(arena, (manifest->count + 1) * sizeof *view->units);
+
+    for (size_t i = 0; i < manifest->count; i++) {
+        const Unit *unit = &manifest->units[i];
+        if (!appliesOn(unit->systems, systems)) {
+            continue;
+        }
+        Unit *copy = &view->units[view->count++];
+        *copy = *unit;
+        copy->deps = NULL;
+        copy->depCount = 0;
+        copy->stmts = arenaAlloc(arena, (unit->stmtCount + 1) *
+                                            sizeof *copy->stmts);
+        copy->stmtCount = 0;
+
+        for (size_t j = 0; j < unit->stmtCount; j++) {
+            const Stmt *stmt = &unit->stmts[j];
+            if (!appliesOn(stmt->systems, systems)) {
+                continue;
+            }
+            Stmt *stmtCopy = &copy->stmts[copy->stmtCount++];
+            *stmtCopy = *stmt;
+            if (stmt->kind != STMT_APPLY && stmt->kind != STMT_APPLY_IF &&
+                stmt->kind != STMT_APPLY_UNLESS) {
+                continue;
+            }
+            ActionList *lists[] = {&stmtCopy->as.apply.thenActions,
+                                   &stmtCopy->as.apply.elseActions};
+            for (size_t k = 0; k < 2; k++) {
+                const ActionList original = *lists[k];
+                lists[k]->items = arenaAlloc(arena, (original.count + 1) *
+                                                        sizeof *original.items);
+                lists[k]->count = 0;
+                for (size_t a = 0; a < original.count; a++) {
+                    if (appliesOn(original.items[a].systems, systems)) {
+                        lists[k]->items[lists[k]->count++] = original.items[a];
+                    }
+                }
+            }
+        }
+    }
+}
+
+/* A diagnostic of one view, and the systems on which it occurs. */
+typedef struct {
+    int line;
+    int column;
+    char *message;
+    SystemSet systems;
+    size_t order;
+} SystemDiagnostic;
+
+typedef struct {
+    Arena *arena;
+    SystemDiagnostic *items;
+    size_t count;
+    size_t capacity;
+    SystemSet current;
+} DiagnosticCollector;
+
+static void collectDiagnostic(void *context, int line, int column,
+                              const char *message)
+{
+    DiagnosticCollector *collector = context;
+    for (size_t i = 0; i < collector->count; i++) {
+        SystemDiagnostic *item = &collector->items[i];
+        if (item->line == line && item->column == column &&
+            strcmp(item->message, message) == 0) {
+            item->systems |= collector->current;
+            return;
+        }
+    }
+    collector->items =
+        arenaGrow(collector->arena, collector->items, collector->count,
+                  &collector->capacity, sizeof *collector->items);
+    collector->items[collector->count] = (SystemDiagnostic){
+        line, column, arenaStrdup(collector->arena, message),
+        collector->current, collector->count,
+    };
+    collector->count++;
+}
+
+static int compareDiagnostics(const void *a, const void *b)
+{
+    const SystemDiagnostic *x = a;
+    const SystemDiagnostic *y = b;
+    if (x->line != y->line) {
+        return x->line < y->line ? -1 : 1;
+    }
+    if (x->column != y->column) {
+        return x->column < y->column ? -1 : 1;
+    }
+    return x->order < y->order ? -1 : x->order > y->order;
+}
+
+static const SystemSet everySystem[] = {
+    SYSTEM_PACMAN, SYSTEM_APT, SYSTEM_DNF, SYSTEM_BREW, SYSTEM_WINGET,
+};
+
+bool analyzeManifest(Arena *arena, Manifest *manifest, Diag *diag)
+{
+    if (manifest->onCount == 0) {
+        return analyzeView(arena, manifest, manifest, diag);
+    }
+
+    /* Every system sees its own view; each error is reported once. */
+    DiagnosticCollector collector = {arena, NULL, 0, 0, 0};
+    for (size_t i = 0; i < sizeof everySystem / sizeof everySystem[0]; i++) {
+        Manifest view;
+        buildView(arena, manifest, everySystem[i], &view);
+        Diag viewDiag;
+        diagInitSink(&viewDiag, collectDiagnostic, &collector);
+        collector.current = everySystem[i];
+        analyzeView(arena, &view, manifest, &viewDiag);
+    }
+
+    if (collector.count > 0) {
+        qsort(collector.items, collector.count, sizeof *collector.items,
+              compareDiagnostics);
+    }
+    for (size_t i = 0; i < collector.count; i++) {
+        const SystemDiagnostic *item = &collector.items[i];
+        if (item->systems == SYSTEM_ALL) {
+            diagError(diag, item->line, item->column, "%s", item->message);
+        } else {
+            char systems[96];
+            describeSystems(item->systems, systems, sizeof systems);
+            diagError(diag, item->line, item->column, "%s (on %s)",
+                      item->message, systems);
+        }
+    }
+    return collector.count == 0;
+}
+
+bool viewsAgree(const Manifest *manifest, SystemSet systems)
+{
+    for (size_t i = 0; i < manifest->onCount; i++) {
+        SystemSet shared = manifest->onBlocks[i].systems & systems;
+        if (shared != 0 && shared != systems) {
+            return false;
+        }
+    }
+    return true;
+}
+
+static void discardDiagnostic(void *context, int line, int column,
+                              const char *message)
+{
+    (void)context;
+    (void)line;
+    (void)column;
+    (void)message;
+}
+
+bool selectManifest(Arena *arena, const Manifest *manifest,
+                    SystemSet systems, Manifest *view)
+{
+    buildView(arena, manifest, systems, view);
+    Diag quiet;
+    diagInitSink(&quiet, discardDiagnostic, NULL);
+    return analyzeView(arena, view, manifest, &quiet);
 }

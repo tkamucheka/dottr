@@ -345,17 +345,54 @@ static void addOccurrence(Document *doc, Occurrence occurrence)
     doc->occurrences[doc->occurrenceCount++] = occurrence;
 }
 
-/* The first local of a unit binding name, or NULL. */
-static const Stmt *findLocal(const Unit *unit, const char *name)
+/*
+ * The local of a unit binding name for a use on systems: the first that
+ * applies on one of them, or else the first, or NULL. A unit may bind a name
+ * once per system, in `on` blocks.
+ */
+static const Stmt *findLocalOn(const Unit *unit, const char *name,
+                               SystemSet systems)
 {
+    const Stmt *first = NULL;
     for (size_t i = 0; i < unit->stmtCount; i++) {
         const Stmt *stmt = &unit->stmts[i];
-        if (stmt->kind == STMT_LOCAL &&
-            strcmp(stmt->as.local.name.text, name) == 0) {
+        if (stmt->kind != STMT_LOCAL ||
+            strcmp(stmt->as.local.name.text, name) != 0) {
+            continue;
+        }
+        if (stmt->systems & systems) {
             return stmt;
         }
+        if (!first) {
+            first = stmt;
+        }
     }
-    return NULL;
+    return first;
+}
+
+static const Stmt *findLocal(const Unit *unit, const char *name)
+{
+    return findLocalOn(unit, name, SYSTEM_ALL);
+}
+
+/* The top-level unit named name for a reference on systems, as findLocalOn. */
+static Unit *findUnitOn(const Manifest *manifest, const char *name,
+                        SystemSet systems)
+{
+    Unit *first = NULL;
+    for (size_t i = 0; i < manifest->count; i++) {
+        Unit *unit = &manifest->units[i];
+        if (strcmp(unit->name.text, name) != 0) {
+            continue;
+        }
+        if (unit->systems & systems) {
+            return unit;
+        }
+        if (!first) {
+            first = unit;
+        }
+    }
+    return first;
 }
 
 /* Byte range of a name as written: an identifier or a string literal. */
@@ -400,7 +437,7 @@ static void addReferences(Document *doc, const Template *value, Unit *unit,
             start + 2 + part->length,
             part->text,
             unit,
-            builtin ? NULL : findLocal(unit, part->text),
+            builtin ? NULL : findLocalOn(unit, part->text, stmt->systems),
             stmt,
         };
         addOccurrence(doc, occurrence);
@@ -457,7 +494,8 @@ static void addShellUses(Document *doc, Unit *unit, const Stmt *stmt,
                 }
                 char *name = arenaStrndup(&doc->arena, &line[nameStart],
                                           j - nameStart);
-                const Stmt *local = findLocal(unit, name);
+                const Stmt *local =
+                    findLocalOn(unit, name, action->systems);
                 if (!local || local->line >= action->line) {
                     continue;
                 }
@@ -507,7 +545,8 @@ static void buildIndex(Document *doc)
                 for (size_t j = 0; j < stmt->as.needs.count; j++) {
                     const Name *name = &stmt->as.needs.names[j];
                     addName(doc, OCC_UNIT_REF, name,
-                            findUnit(manifest, name->text), NULL, stmt);
+                            findUnitOn(manifest, name->text, stmt->systems),
+                            NULL, stmt);
                 }
                 break;
             case STMT_CHILD_PKG:
@@ -517,13 +556,16 @@ static void buildIndex(Document *doc)
             case STMT_CHECK:
             case STMT_CREATE:
                 addName(doc, OCC_VAR_REF, &stmt->as.predicate.variable, unit,
-                        findLocal(unit, stmt->as.predicate.variable.text),
+                        findLocalOn(unit, stmt->as.predicate.variable.text,
+                                    stmt->systems),
                         stmt);
                 break;
             case STMT_APPLY_IF:
             case STMT_APPLY_UNLESS:
                 addName(doc, OCC_VAR_REF, &stmt->as.apply.variable, unit,
-                        findLocal(unit, stmt->as.apply.variable.text), stmt);
+                        findLocalOn(unit, stmt->as.apply.variable.text,
+                                    stmt->systems),
+                        stmt);
                 addShellUsesOfActions(doc, unit, stmt,
                                       &stmt->as.apply.thenActions);
                 addShellUsesOfActions(doc, unit, stmt,
@@ -650,13 +692,21 @@ static bool isVariableOccurrence(const Occurrence *o)
            o->kind == OCC_VAR_SHELL;
 }
 
+/*
+ * Whether two occurrences name the same symbol. Symbols are identified by
+ * name, so that the declarations of a unit or variable for different
+ * systems, in `on` blocks, are one symbol.
+ */
 static bool sameSymbol(const Occurrence *a, const Occurrence *b)
 {
     if (isUnitOccurrence(a) && isUnitOccurrence(b)) {
-        return a->unit && a->unit == b->unit;
+        return a->unit && b->unit &&
+               strcmp(a->unit->name.text, b->unit->name.text) == 0;
     }
     if (isVariableOccurrence(a) && isVariableOccurrence(b)) {
-        return a->local && a->local == b->local;
+        return a->local && b->local && a->unit == b->unit &&
+               strcmp(a->local->as.local.name.text,
+                      b->local->as.local.name.text) == 0;
     }
     return false;
 }
@@ -859,9 +909,9 @@ static const struct {
     const char *text;
 } keywordDocs[] = {
     {"pkg", "`pkg NAME` declares a unit that installs the package NAME with "
-            "the system package manager. `pkg NAME do ... end` declares a unit satisfied by "
-            "evaluating its body. Inside a unit, `pkg NAME` installs a "
-            "package as a child unit."},
+            "the system package manager. `pkg NAME do ... end` declares a "
+            "unit satisfied by evaluating its body. Inside a unit, `pkg "
+            "NAME` installs a package as a child unit."},
     {"do", "Opens a block, closed by `end`."},
     {"end", "Closes the innermost block."},
     {"local", "`local NAME = \"STRING\"` binds a variable in the enclosing "
@@ -883,6 +933,11 @@ static const struct {
                      "fact recorded by `check ... NAME` is false."},
     {"else", "Begins the branch of `apply_if` that runs when the fact is "
              "false."},
+    {"on", "`on SYSTEM, ... do ... end` selects its contents for the "
+           "systems named: an operating system (`linux`, `macos`, "
+           "`windows`) or a package manager (`pacman`, `apt`, `dnf`, "
+           "`brew`, `winget`). It may contain units at top level, "
+           "statements in a unit, and `shell` blocks in `apply`."},
     {"shell", "`shell do`, a fenced script (```, ```sh, ```bash, or ```zsh), "
               "and `end`. The script runs as `INTERPRETER -e -c SCRIPT` in a "
               "process of its own, with the unit's variables in its "
@@ -1016,11 +1071,59 @@ static void hoverUnit(StrBuf *text, const Document *doc, const Occurrence *o)
     } else {
         strBufAppendStr(text, "Installs the package ");
         appendCode(text, unit->name.text, strlen(unit->name.text));
-        appendLineNumber(text, " with the system package manager. Declared on line ",
+        appendLineNumber(text,
+                         " with the system package manager. Declared on "
+                         "line ",
                          unit->name.line);
         strBufAppendChar(text, '.');
     }
+    if (unit->systems != SYSTEM_ALL) {
+        char systems[96];
+        describeSystems(unit->systems, systems, sizeof systems);
+        strBufAppendStr(text, "\n\nExists on ");
+        strBufAppendStr(text, systems);
+        strBufAppendStr(text, " only.");
+    }
     (void)doc;
+}
+
+/* Hover text of an `on` selector at offset; false if there is none. */
+static bool hoverSelector(StrBuf *text, const Document *doc, size_t offset,
+                          size_t *start, size_t *end)
+{
+    if (!doc->parsed) {
+        return false;
+    }
+    for (size_t i = 0; i < doc->manifest.onCount; i++) {
+        const OnBlock *block = &doc->manifest.onBlocks[i];
+        for (size_t j = 0; j < block->selectorCount; j++) {
+            const Name *selector = &block->selectors[j];
+            size_t first = offsetAt(doc, selector->line, selector->column);
+            size_t last = first + strlen(selector->text);
+            if (offset < first || offset > last) {
+                continue;
+            }
+            *start = first;
+            *end = last;
+            SystemSet systems = systemSelector(selector->text);
+            strBufAppendStr(text, "**system** ");
+            appendCode(text, selector->text, strlen(selector->text));
+            if (systems == SYSTEM_LINUX) {
+                strBufAppendStr(text, "\n\nLinux, with pacman, apt, or "
+                                      "dnf.");
+            } else if (systems == SYSTEM_MACOS) {
+                strBufAppendStr(text, "\n\nmacOS, with Homebrew.");
+            } else if (systems == SYSTEM_WINDOWS) {
+                strBufAppendStr(text, "\n\nWindows, with winget.");
+            } else {
+                strBufAppendStr(text, "\n\nThe package manager ");
+                appendCode(text, selector->text, strlen(selector->text));
+                strBufAppendStr(text, ".");
+            }
+            return true;
+        }
+    }
+    return false;
 }
 
 static void hoverVariable(StrBuf *text, const Document *doc,
@@ -1558,7 +1661,7 @@ static void handleHover(Server *s, const JsonValue *params, Reply *reply)
             hoverPackage(&text, o);
             break;
         }
-    } else {
+    } else if (!hoverSelector(&text, doc, offset, &start, &end)) {
         const Token *keyword = keywordAt(doc, offset);
         const char *docText =
             keyword ? keywordDoc(keyword->text, keyword->length) : NULL;
@@ -1591,6 +1694,10 @@ typedef enum {
     BLOCK_APPLY,
     BLOCK_APPLY_IF,
     BLOCK_SHELL,
+    /* An `on` block, whose contents are those of the enclosing block. */
+    BLOCK_ON,
+    /* No enclosing block: the top level of the document. */
+    BLOCK_NONE,
 } BlockKind;
 
 #define MAX_BLOCKS 64
@@ -1690,6 +1797,27 @@ static Span unquote(Span span)
     return span;
 }
 
+/* The innermost block other than `on`, or BLOCK_NONE at top level. */
+static BlockKind contextBlock(const Scan *scan)
+{
+    for (int i = scan->depth - 1; i >= 0; i--) {
+        if (scan->blocks[i] != BLOCK_ON) {
+            return scan->blocks[i];
+        }
+    }
+    return BLOCK_NONE;
+}
+
+static bool inUnit(const Scan *scan)
+{
+    for (int i = 0; i < scan->depth; i++) {
+        if (scan->blocks[i] == BLOCK_UNIT) {
+            return true;
+        }
+    }
+    return false;
+}
+
 static void scanLine(Scan *scan, const char *text, size_t length)
 {
     size_t start = 0;
@@ -1719,31 +1847,34 @@ static void scanLine(Scan *scan, const char *text, size_t length)
     Span last = words.words[words.count - 1];
 
     if (spanIs(first, "end")) {
-        if (scan->depth > 0 && --scan->depth == 0) {
+        if (scan->depth > 0 && scan->blocks[--scan->depth] == BLOCK_UNIT) {
             scan->unitName = (Span){NULL, 0};
             scan->locals.count = 0;
             scan->checked.count = 0;
         }
         return;
     }
-    if (spanIs(first, "pkg") && words.count >= 2 && scan->depth == 0) {
+    bool topLevel = contextBlock(scan) == BLOCK_NONE;
+    if (spanIs(first, "pkg") && words.count >= 2 && topLevel) {
         spanListAdd(&scan->units, unquote(words.words[1]));
     }
-    if (scan->depth > 0 && spanIs(first, "local") && words.count >= 2) {
+    if (inUnit(scan) && spanIs(first, "local") && words.count >= 2) {
         spanListAdd(&scan->locals, words.words[1]);
     }
-    if (scan->depth > 0 && spanIs(first, "check") && words.count >= 3) {
+    if (inUnit(scan) && spanIs(first, "check") && words.count >= 3) {
         spanListAdd(&scan->checked, words.words[2]);
     }
     if (spanIs(last, "do") && scan->depth < MAX_BLOCKS) {
         BlockKind kind = BLOCK_APPLY;
         if (spanIs(first, "pkg")) {
             kind = BLOCK_UNIT;
-            if (scan->depth == 0 && words.count >= 2) {
+            if (topLevel && words.count >= 2) {
                 scan->unitName = unquote(words.words[1]);
                 scan->locals.count = 0;
                 scan->checked.count = 0;
             }
+        } else if (spanIs(first, "on")) {
+            kind = BLOCK_ON;
         } else if (spanIs(first, "apply_if")) {
             kind = BLOCK_APPLY_IF;
         } else if (spanIs(first, "shell")) {
@@ -1799,25 +1930,29 @@ static const struct {
     {"apply_if", "apply_if ${1:NAME} do\n\t$0\nend"},
     {"apply_unless", "apply_unless ${1:NAME} do\n\t$0\nend"},
     {"shell", "shell do\n\t```${1}\n\t$0\n\t```\nend"},
+    {"on", "on ${1:linux} do\n\t$0\nend"},
 };
 
-static void addKeywords(ItemWriter *w, const Server *s, int depth,
-                        BlockKind block)
+static void addKeywords(ItemWriter *w, const Server *s, const Scan *scan)
 {
-    static const char *const topLevel[] = {"pkg", NULL};
+    static const char *const file[] = {"pkg", "on", NULL};
+    static const char *const topLevelOn[] = {"pkg", "on", "end", NULL};
     static const char *const unit[] = {
-        "local", "needs", "pkg", "check", "create",
-        "apply", "apply_if", "apply_unless", "end", NULL};
-    static const char *const apply[] = {"shell", "end", NULL};
-    static const char *const applyIf[] = {"shell", "else", "end", NULL};
+        "local", "needs", "pkg", "check", "create", "apply",
+        "apply_if", "apply_unless", "on", "end", NULL};
+    static const char *const apply[] = {"shell", "on", "end", NULL};
+    static const char *const applyIf[] = {"shell", "on", "else", "end", NULL};
     static const char *const shell[] = {"end", NULL};
 
-    const char *const *words = topLevel;
-    if (depth > 0) {
-        words = block == BLOCK_UNIT       ? unit
-                : block == BLOCK_APPLY_IF ? applyIf
-                : block == BLOCK_SHELL    ? shell
-                                          : apply;
+    /* `else` belongs to `apply_if`, not to an `on` block within it. */
+    bool inOn = scan->depth > 0 && scan->blocks[scan->depth - 1] == BLOCK_ON;
+    const char *const *words;
+    switch (contextBlock(scan)) {
+    case BLOCK_NONE: words = inOn ? topLevelOn : file; break;
+    case BLOCK_UNIT: words = unit; break;
+    case BLOCK_APPLY_IF: words = inOn ? apply : applyIf; break;
+    case BLOCK_SHELL: words = shell; break;
+    default: words = apply; break;
     }
     for (size_t i = 0; words[i]; i++) {
         addItem(w, words[i], strlen(words[i]), COMPLETION_KEYWORD, NULL);
@@ -1935,8 +2070,22 @@ static void handleCompletion(Server *s, const JsonValue *params, Reply *reply)
     }
 
     if (count == 0) {
-        addKeywords(&w, s, scan.depth,
-                    scan.depth > 0 ? scan.blocks[scan.depth - 1] : BLOCK_UNIT);
+        addKeywords(&w, s, &scan);
+    } else if (spanIs(context[0], "on") && !spanIs(context[count - 1], "do")) {
+        static const char *const selectors[] = {
+            "linux", "macos", "windows", "pacman",
+            "apt",   "dnf",   "brew",    "winget",
+        };
+        for (size_t i = 0; i < sizeof selectors / sizeof selectors[0]; i++) {
+            bool listed = false;
+            for (size_t j = 1; j < count; j++) {
+                listed = listed || spanIs(context[j], selectors[i]);
+            }
+            if (!listed) {
+                addItem(&w, selectors[i], strlen(selectors[i]),
+                        COMPLETION_ENUM_MEMBER, "system");
+            }
+        }
     } else if (spanIs(context[0], "needs")) {
         for (size_t i = 0; i < whole.units.count; i++) {
             Span unit = whole.units.items[i];

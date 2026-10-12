@@ -160,3 +160,56 @@ bool packageInstallCommand(PackageManager manager, const char *package,
     argv[n] = NULL;
     return true;
 }
+
+SystemSet packageManagerSystems(PackageManager manager)
+{
+    switch (manager) {
+    case PACKAGE_MANAGER_PACMAN: return SYSTEM_PACMAN;
+    case PACKAGE_MANAGER_APT: return SYSTEM_APT;
+    case PACKAGE_MANAGER_DNF: return SYSTEM_DNF;
+    case PACKAGE_MANAGER_BREW: return SYSTEM_BREW;
+    case PACKAGE_MANAGER_WINGET: return SYSTEM_WINGET;
+    case PACKAGE_MANAGER_NONE: break;
+    }
+    return 0;
+}
+
+static const struct {
+    const char *name;
+    SystemSet systems;
+} selectors[] = {
+    {"linux", SYSTEM_LINUX},   {"macos", SYSTEM_MACOS},
+    {"windows", SYSTEM_WINDOWS}, {"pacman", SYSTEM_PACMAN},
+    {"apt", SYSTEM_APT},       {"dnf", SYSTEM_DNF},
+    {"brew", SYSTEM_BREW},     {"winget", SYSTEM_WINGET},
+};
+
+SystemSet systemSelector(const char *name)
+{
+    for (size_t i = 0; i < sizeof selectors / sizeof selectors[0]; i++) {
+        if (strcmp(selectors[i].name, name) == 0) {
+            return selectors[i].systems;
+        }
+    }
+    return 0;
+}
+
+void describeSystems(SystemSet systems, char *buffer, size_t size)
+{
+    size_t used = 0;
+    buffer[0] = '\0';
+    /* Operating systems first, then the package managers not covered. */
+    for (size_t i = 0; i < sizeof selectors / sizeof selectors[0]; i++) {
+        SystemSet bits = selectors[i].systems;
+        if ((systems & bits) != bits) {
+            continue;
+        }
+        systems &= ~bits;
+        int written = snprintf(buffer + used, size - used, "%s%s",
+                               used > 0 ? ", " : "", selectors[i].name);
+        if (written < 0 || (size_t)written >= size - used) {
+            return;
+        }
+        used += (size_t)written;
+    }
+}

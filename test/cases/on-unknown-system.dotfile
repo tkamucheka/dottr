@@ -1,0 +1,4 @@
+# args: check
+# status: 2
+on bsd do
+end

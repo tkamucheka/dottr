@@ -85,9 +85,38 @@ static void testNames(void)
     }
 }
 
+static void expectDescription(SystemSet systems, const char *expected)
+{
+    testCount++;
+    char buffer[96];
+    describeSystems(systems, buffer, sizeof buffer);
+    if (strcmp(buffer, expected) != 0) {
+        TEST_FAIL("package: systems 0x%x: expected '%s', got '%s'", systems,
+                  expected, buffer);
+    }
+}
+
+static void testSystems(void)
+{
+    testCount++;
+    if (systemSelector("linux") != SYSTEM_LINUX ||
+        systemSelector("macos") != SYSTEM_BREW ||
+        systemSelector("windows") != SYSTEM_WINGET ||
+        systemSelector("apt") != SYSTEM_APT || systemSelector("bsd") != 0 ||
+        systemSelector("Linux") != 0) {
+        TEST_FAIL("package: wrong systems of a selector");
+    }
+
+    expectDescription(SYSTEM_ALL, "linux, macos, windows");
+    expectDescription(SYSTEM_LINUX | SYSTEM_WINGET, "linux, windows");
+    expectDescription(SYSTEM_APT | SYSTEM_DNF, "apt, dnf");
+    expectDescription(SYSTEM_PACMAN | SYSTEM_BREW, "macos, pacman");
+}
+
 void runPackageTests(void)
 {
     testNames();
+    testSystems();
 
     expectCommand(PACKAGE_MANAGER_PACMAN, false,
                   "sudo pacman -S --needed --noconfirm git");

@@ -754,6 +754,102 @@ static void testUtf16(void)
     sessionFree(&s);
 }
 
+/* `on` blocks: symbols per system, hover, diagnostics, and completion. */
+static void testOnBlocks(void)
+{
+    static const char text[] =
+        "pkg git\n"                          /* 0 */
+        "on macos do\n"                      /* 1 */
+        "  pkg rectangle\n"                  /* 2 */
+        "end\n"                              /* 3 */
+        "pkg app do\n"                       /* 4 */
+        "  on linux, macos do\n"             /* 5 */
+        "    local DIR = \"a\"\n"            /* 6 */
+        "  end\n"                            /* 7 */
+        "  on windows do\n"                  /* 8 */
+        "    local DIR = \"b\"\n"            /* 9 */
+        "  end\n"                            /* 10 */
+        "  check directory DIR\n"            /* 11 */
+        "  apply_if DIR do\n"                /* 12 */
+        "  end\n"                            /* 13 */
+        "  needs rectangle\n"                /* 14 */
+        "end\n";                             /* 15 */
+
+    Session s;
+    sessionInit(&s);
+    sendInitialize(&s, "[\"utf-8\"]");
+    sendOpen(&s, text);
+    sendAt(&s, 1, "textDocument/rename", 9, 11, ",\"newName\":\"ROOT\"");
+    sendAt(&s, 2, "textDocument/hover", 5, 6, NULL);
+    sendAt(&s, 3, "textDocument/hover", 5, 2, NULL);
+    sendAt(&s, 4, "textDocument/hover", 2, 6, NULL);
+    sendAt(&s, 5, "textDocument/definition", 11, 19, NULL);
+    run(&s);
+
+    const JsonValue *edits = jsonGet(at(response(&s, 1), "result.changes"), URI);
+    testCount++;
+    if (!edits || edits->kind != JSON_ARRAY || edits->count != 4) {
+        TEST_FAIL("lsp on: rename a variable bound per system: expected 4 "
+                  "edits");
+    }
+    expectContains("lsp on: hover selector", response(&s, 2),
+                   "result.contents.value", "Linux, with pacman");
+    expectContains("lsp on: hover keyword", response(&s, 3),
+                   "result.contents.value", "selects its contents");
+    expectContains("lsp on: hover unit of one system", response(&s, 4),
+                   "result.contents.value", "Exists on macos only");
+    expectInt("lsp on: definition", response(&s, 5),
+              "result.range.start.line", 6);
+    const JsonValue *d = lastDiagnostics(&s);
+    expectCount("lsp on: diagnostics", d, "params.diagnostics", 1);
+    expectContains("lsp on: diagnostics", d, "params.diagnostics[0].message",
+                   "unit `rectangle` is not declared on this system");
+    expectContains("lsp on: diagnostics", d, "params.diagnostics[0].message",
+                   "(on linux, windows)");
+    sessionFree(&s);
+
+    static const char partial[] =
+        "on \n"                              /* 0 */
+        "on linux, \n"                       /* 1 */
+        "pkg a do\n"                         /* 2 */
+        "  on linux do\n"                    /* 3 */
+        "    \n"                             /* 4 */
+        "  end\n"                            /* 5 */
+        "  apply_if X do\n"                  /* 6 */
+        "    on linux do\n"                  /* 7 */
+        "      \n"                           /* 8 */
+        "    end\n"                          /* 9 */
+        "  end\n"                            /* 10 */
+        "end\n";                             /* 11 */
+
+    sessionInit(&s);
+    sendInitialize(&s, "[\"utf-8\"]");
+    sendOpen(&s, partial);
+    sendAt(&s, 1, "textDocument/completion", 0, 3, NULL);
+    sendAt(&s, 2, "textDocument/completion", 1, 10, NULL);
+    sendAt(&s, 3, "textDocument/completion", 4, 4, NULL);
+    sendAt(&s, 4, "textDocument/completion", 8, 6, NULL);
+    run(&s);
+
+    const char *const selectors[] = {"linux", "macos", "windows", "pacman",
+                                     "apt", "winget", NULL};
+    expectLabels("lsp on: selectors", at(response(&s, 1), "result"),
+                 selectors, NULL);
+    const char *const remaining[] = {"macos", "apt", NULL};
+    const char *const listed[] = {"linux", NULL};
+    expectLabels("lsp on: remaining selectors", at(response(&s, 2), "result"),
+                 remaining, listed);
+    const char *const unitBody[] = {"local", "needs", "on", "end", NULL};
+    const char *const notInUnit[] = {"shell", NULL};
+    expectLabels("lsp on: unit body", at(response(&s, 3), "result"), unitBody,
+                 notInUnit);
+    const char *const actions[] = {"shell", "on", "end", NULL};
+    const char *const noElse[] = {"else", "local", NULL};
+    expectLabels("lsp on: apply_if body", at(response(&s, 4), "result"),
+                 actions, noElse);
+    sessionFree(&s);
+}
+
 void runLspTests(void)
 {
     testLifecycle();
@@ -765,4 +861,5 @@ void runLspTests(void)
     testCompletion();
     testShellUses();
     testUtf16();
+    testOnBlocks();
 }

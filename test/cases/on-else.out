@@ -1,0 +1,1 @@
+test/cases/on-else.dotfile:7:3: error: `else` is not supported in `on` blocks

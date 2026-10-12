@@ -69,6 +69,7 @@ The statements of a block unit are:
 | `apply do ... end` | Runs actions (Section 6). |
 | `apply_if NAME do ... [else ...] end` | Runs actions if a fact is true (Section 6). |
 | `apply_unless NAME do ... end` | Runs actions if a fact is false (Section 6). |
+| `on SYSTEM, ... do ... end` | Selects statements by system (Section 7). |
 
 ### 2.1 Packages
 
@@ -94,7 +95,7 @@ does so in a shell block.
 
 `NAME` is the name of the package for the package manager, and names differ
 between package managers, for example `fd` with pacman and `fd-find` with
-apt.
+apt. `on` blocks select the name for each system (Section 7).
 
 Inside a block unit, `pkg NAME` installs the package `NAME` at that point of
 the body. It is commonly used to install the package that a block unit
@@ -158,7 +159,7 @@ Keywords cannot be used as variable or unit identifiers:
 
 ```
 pkg  do  end  local  needs  check  create  apply  apply_if  apply_unless
-else  shell  command  file  directory
+else  shell  command  file  directory  on
 ```
 
 A variable cannot be named after one of the environment variables that
@@ -292,7 +293,104 @@ local TPM_DIR = "@{dottr.env.home}/.config/tmux/plugins/tpm"
 No state is carried from one block to the next: a `cd` or `export` in one
 block does not affect another.
 
-## 7. Idempotence
+## 7. Systems
+
+A manifest can describe several systems: a system is an operating system
+with its package manager. An `on` block selects its contents for the systems
+it names:
+
+```
+pkg fd do
+  on pacman, dnf, brew do
+    pkg fd
+  end
+  on apt do
+    pkg "fd-find"
+  end
+  on windows do
+    pkg "sharkdp.fd"
+  end
+end
+```
+
+| System | Operating system | Package manager |
+|--------|------------------|-----------------|
+| `pacman` | Linux | pacman |
+| `apt` | Linux | apt |
+| `dnf` | Linux | dnf |
+| `brew` | macOS | Homebrew |
+| `winget` | Windows | winget |
+
+An `on` block names systems by package manager, as in the table, or by
+operating system: `linux` stands for `pacman`, `apt`, and `dnf`, `macos` for
+`brew`, and `windows` for `winget`. The block applies on every system it
+names.
+
+`on` blocks may appear at the top level of the manifest, around units; in a
+unit, around its statements; and in `apply`, `apply_if`, and `apply_unless`,
+around `shell` blocks:
+
+````
+on macos do
+  pkg rectangle
+end
+
+pkg tpm do
+  needs git
+  on linux, macos do
+    local TPM_DIR = "@{dottr.env.home}/.config/tmux/plugins/tpm"
+  end
+  on windows do
+    local TPM_DIR = "@{dottr.env.home}/.tmux/plugins/tpm"
+  end
+  check directory TPM_DIR
+  apply_unless TPM_DIR do
+    on linux, macos do
+      shell do
+        ```
+        git clone https://github.com/tmux-plugins/tpm "$TPM_DIR"
+        ```
+      end
+    end
+    on windows do
+      shell do
+        ```
+        git clone https://github.com/tmux-plugins/tpm $env:TPM_DIR
+        ```
+      end
+    end
+  end
+end
+````
+
+`on` blocks may be nested; a nested block applies on the systems that both
+blocks name, and a nested block that shares no system with the enclosing
+block is an error. `on` blocks have no `else` branch.
+
+### 7.1 The Manifest of a System
+
+On a system, a manifest consists of the statements that apply on it: the
+contents of `on` blocks for other systems are not part of it. dottr applies
+the manifest of the host's system, which is selected by its package manager
+([Command Line](command-line.md), Section 1.3).
+
+A manifest is valid if it is valid on every system. `dottr check` therefore
+reports an error that occurs on some systems only with the systems on which
+it occurs:
+
+```
+packages.dotfile:21:19: error: undefined variable `X` (on linux, macos)
+```
+
+Consequently:
+
+* A variable bound in an `on` block can be used after it only on the systems
+  of the block; to use it on every system, bind it in a block for each.
+* A unit declared in an `on` block exists only on its systems, and only units
+  on the same systems may need it.
+* A unit or variable may be declared once per system, as `TPM_DIR` is above.
+
+## 8. Idempotence
 
 A manifest is meant to be applied repeatedly, each time bringing the host to
 the declared state. Package units are idempotent, since installing an

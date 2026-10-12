@@ -37,8 +37,11 @@ dottr lsp
 
 ### 1.1 Selecting Units
 
-`plan` and `apply` process every unit of the manifest, or, if unit names are
-given, those units and the units they need, directly or indirectly:
+`plan` and `apply` process the manifest of the host's system: the units and
+statements that apply on its package manager, or on the one named by
+`--package-manager` ([The Manifest Language](language.md), Section 7.1).
+They process every unit of that manifest, or, if unit names are given, those
+units and the units they need, directly or indirectly:
 
 ```
 dottr apply neovim tmux
@@ -46,12 +49,21 @@ dottr apply neovim tmux
 
 Units are processed in dependency order (see
 [The Manifest Language](language.md), Section 3). A name that the manifest
-does not declare is an error, and nothing is applied.
+does not declare, or declares only for other systems, is an error, and
+nothing is applied.
+
+If no package manager is found, the operating system selects the manifest,
+which requires that it does not distinguish between the package managers of
+the operating system; otherwise `--package-manager` must name one.
 
 ### 1.2 Validation
 
 Every command except `lsp` first validates the whole manifest, and stops at
 the first lexical or syntax error or after reporting all semantic errors.
+`check`, `plan`, and `apply` validate the manifest of every system, so that a
+manifest checked on one system is valid on the others; an error that occurs
+on some systems only is followed by those systems, as in
+`(on linux, macos)`.
 Errors are written to standard error in the form
 
 ```

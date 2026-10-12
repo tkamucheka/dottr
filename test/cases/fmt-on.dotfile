@@ -1,0 +1,20 @@
+# args: fmt
+# status: 0
+on   macos,windows do
+pkg a
+    end
+pkg b do
+on linux do
+      local X = "x"
+  end
+  check directory X
+  apply_if X do
+         on linux do
+    shell do
+    ```
+    true
+    ```
+    end
+    end
+  end
+end

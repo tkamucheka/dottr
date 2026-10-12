@@ -1,0 +1,56 @@
+# args: plan --package-manager apt
+# status: 0
+# The view of a manifest with `on` blocks on apt.
+pkg git
+
+on macos do
+  pkg rectangle
+end
+
+pkg neovim do
+  on linux, macos do
+    pkg neovim
+  end
+  on windows do
+    pkg "Neovim.Neovim"
+  end
+end
+
+pkg fd do
+  on pacman, dnf, brew do
+    pkg fd
+  end
+  on apt do
+    pkg "fd-find"
+  end
+  on windows do
+    pkg "sharkdp.fd"
+  end
+end
+
+pkg tpm do
+  needs git
+  on linux, macos do
+    local TPM_DIR = "/nonexistent/linux/tpm"
+  end
+  on windows do
+    local TPM_DIR = "/nonexistent/windows/tpm"
+  end
+  check directory TPM_DIR
+  apply_unless TPM_DIR do
+    on linux, macos do
+      shell do
+        ```
+        git clone https://github.com/tmux-plugins/tpm "$TPM_DIR"
+        ```
+      end
+    end
+    on windows do
+      shell do
+        ```
+        git clone https://github.com/tmux-plugins/tpm $env:TPM_DIR
+        ```
+      end
+    end
+  end
+end

@@ -1,0 +1,8 @@
+# args: check
+# status: 2
+# An `on` block inside another must share one of its systems.
+on windows do
+  on apt do
+    pkg x
+  end
+end

@@ -53,7 +53,7 @@ token         = keyword | IDENT | STRING | "=" | "," ;
 word          = ( letter | "_" ) { letter | digit | "_" } ;
 keyword       = "pkg" | "do" | "end" | "local" | "needs" | "check"
               | "create" | "apply" | "apply_if" | "apply_unless" | "else"
-              | "shell" | "command" | "file" | "directory" ;
+              | "shell" | "command" | "file" | "directory" | "on" ;
 IDENT         = word - keyword ;
 
 (* String literals *)
@@ -95,7 +95,9 @@ written directly:
 ## 3. Syntactic Grammar
 
 ```ebnf
-manifest          = { pkg_decl } EOF ;
+manifest          = { top_item } EOF ;
+top_item          = pkg_decl | on_top ;
+on_top            = "on" systems "do" NEWLINE { top_item } "end" NEWLINE ;
 
 pkg_decl          = "pkg" unit_name NEWLINE
                   | "pkg" unit_name "do" NEWLINE { unit_stmt } "end" NEWLINE ;
@@ -107,7 +109,9 @@ unit_stmt         = local_stmt
                   | create_stmt
                   | apply_stmt
                   | apply_if_stmt
-                  | apply_unless_stmt ;
+                  | apply_unless_stmt
+                  | on_unit ;
+on_unit           = "on" systems "do" NEWLINE { unit_stmt } "end" NEWLINE ;
 
 local_stmt        = "local" IDENT "=" STRING NEWLINE ;
 needs_stmt        = "needs" unit_name { "," unit_name } NEWLINE ;
@@ -121,11 +125,13 @@ apply_if_stmt     = "apply_if" IDENT "do" NEWLINE { action_stmt }
 apply_unless_stmt = "apply_unless" IDENT "do" NEWLINE { action_stmt }
                     "end" NEWLINE ;
 
-action_stmt       = shell_stmt ;
+action_stmt       = shell_stmt | on_action ;
+on_action         = "on" systems "do" NEWLINE { action_stmt } "end" NEWLINE ;
 shell_stmt        = "shell" "do" NEWLINE RAW_BLOCK NEWLINE "end" NEWLINE ;
 
 kind              = "command" | "file" | "directory" ;
 unit_name         = IDENT | STRING ;
+systems           = IDENT { "," IDENT } ;
 ```
 
 Example:
@@ -168,9 +174,14 @@ Syntactic constraints, reported by the parser:
 
 * A `unit_name` written as a `STRING` must be non-empty and must not contain
   an `INTERP`.
+* Each `IDENT` of `systems` names a system: `linux`, `macos`, `windows`,
+  `pacman`, `apt`, `dnf`, `brew`, or `winget`.
+* A nested `on` block shares at least one system with the enclosing one.
 
 Semantic constraints, reported before evaluation and described in
-[The Manifest Language](language.md):
+[The Manifest Language](language.md). They apply to the manifest of each
+system, which consists of the contents of the `on` blocks that apply on it
+(Section 7.1):
 
 * Unit names are unique (Section 2).
 * Every `needs` names a declared unit, and dependencies are acyclic

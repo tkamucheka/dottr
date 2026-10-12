@@ -32,6 +32,7 @@ typedef enum {
     TOK_COMMAND,
     TOK_FILE,
     TOK_DIRECTORY,
+    TOK_ON,
 } TokenKind;
 
 /* Shell named by the info string of a raw block. */

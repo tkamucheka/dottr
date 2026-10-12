@@ -11,6 +11,11 @@ typedef struct {
     size_t count;
     size_t pos;
     char described[160];
+    Manifest *manifest;
+    size_t unitCapacity;
+    size_t onCapacity;
+    /* Systems of the enclosing `on` blocks; SYSTEM_ALL outside them. */
+    SystemSet systems;
 } Parser;
 
 static const Token *peek(const Parser *p)
@@ -155,6 +160,89 @@ static bool parseVariable(Parser *p, Name *name, const char *context)
     return false;
 }
 
+/*
+ * Parses `on SELECTOR, ... do NEWLINE`, records the block, and narrows the
+ * systems of the parser to those of the block. Stores the index of the block
+ * in *index and the systems to restore at its end in *outer.
+ */
+static bool beginOn(Parser *p, size_t *index, SystemSet *outer)
+{
+    const Token *on = advance(p);
+    OnBlock block = {on->line, on->column, 0, 0, NULL, 0, 0};
+    size_t capacity = 0;
+    SystemSet selected = 0;
+
+    for (;;) {
+        const Token *token = peek(p);
+        if (token->kind != TOK_IDENT) {
+            errorAt(p, token,
+                    "expected a system after `on` (%s), found %s",
+                    SYSTEM_SELECTORS, describe(p, token));
+            return false;
+        }
+        Name selector = nameFrom(p, token);
+        SystemSet systems = systemSelector(selector.text);
+        if (systems == 0) {
+            errorAt(p, token, "unknown system `%s`; expected one of %s",
+                    selector.text, SYSTEM_SELECTORS);
+            return false;
+        }
+        advance(p);
+        block.selectors = arenaGrow(p->arena, block.selectors,
+                                    block.selectorCount, &capacity,
+                                    sizeof *block.selectors);
+        block.selectors[block.selectorCount++] = selector;
+        selected |= systems;
+        if (!at(p, TOK_COMMA)) {
+            break;
+        }
+        advance(p);
+    }
+
+    if (!expect(p, TOK_DO, "after the systems of `on`") ||
+        !expect(p, TOK_NEWLINE, "after `do`")) {
+        return false;
+    }
+
+    block.systems = p->systems & selected;
+    if (block.systems == 0) {
+        char enclosing[96];
+        describeSystems(p->systems, enclosing, sizeof enclosing);
+        errorAt(p, on,
+                "this `on` block applies on no system: it is inside a block "
+                "for %s",
+                enclosing);
+        return false;
+    }
+
+    Manifest *manifest = p->manifest;
+    manifest->onBlocks = arenaGrow(p->arena, manifest->onBlocks,
+                                   manifest->onCount, &p->onCapacity,
+                                   sizeof *manifest->onBlocks);
+    *index = manifest->onCount;
+    manifest->onBlocks[manifest->onCount++] = block;
+    *outer = p->systems;
+    p->systems = block.systems;
+    return true;
+}
+
+/* Consumes the `end` of an `on` block and restores the outer systems. */
+static bool endOn(Parser *p, size_t index, SystemSet outer)
+{
+    const Token *end = advance(p);
+    OnBlock *block = &p->manifest->onBlocks[index];
+    block->endLine = end->line;
+    block->endColumn = end->column;
+    p->systems = outer;
+    return expect(p, TOK_NEWLINE, "after `end`");
+}
+
+/* Reports `else` in an `on` block, which the language does not provide. */
+static void errorElseInOn(Parser *p, const Token *token)
+{
+    errorAt(p, token, "`else` is not supported in `on` blocks");
+}
+
 static bool parseShell(Parser *p, ActionList *actions, size_t *capacity)
 {
     const Token *shellToken = advance(p);
@@ -191,6 +279,7 @@ static bool parseShell(Parser *p, ActionList *actions, size_t *capacity)
                                capacity, sizeof *actions->items);
     Action *action = &actions->items[actions->count++];
     action->kind = ACTION_SHELL;
+    action->systems = p->systems;
     action->line = shellToken->line;
     action->column = shellToken->column;
     action->fenceLine = raw->line;
@@ -201,16 +290,13 @@ static bool parseShell(Parser *p, ActionList *actions, size_t *capacity)
 }
 
 /*
- * Parses action statements up to `end`, or up to `else` when allowElse is
- * set. The terminator is not consumed.
+ * Parses action statements into actions up to `end`, or up to `else` when
+ * allowElse is set. The terminator is not consumed. The actions of nested
+ * `on` blocks are added to the same list.
  */
-static bool parseActions(Parser *p, ActionList *actions, bool allowElse,
-                         const Token *opener)
+static bool parseActionsInto(Parser *p, ActionList *actions, size_t *capacity,
+                             bool allowElse, const Token *opener)
 {
-    size_t capacity = 0;
-    actions->items = NULL;
-    actions->count = 0;
-
     for (;;) {
         skipNewlines(p);
         const Token *token = peek(p);
@@ -218,11 +304,23 @@ static bool parseActions(Parser *p, ActionList *actions, bool allowElse,
         switch (token->kind) {
         case TOK_END:
             return true;
+        case TOK_ON: {
+            size_t index;
+            SystemSet outer;
+            if (!beginOn(p, &index, &outer) ||
+                !parseActionsInto(p, actions, capacity, false, token) ||
+                !endOn(p, index, outer)) {
+                return false;
+            }
+            break;
+        }
         case TOK_ELSE:
             if (allowElse) {
                 return true;
             }
-            if (opener->kind == TOK_APPLY_IF) {
+            if (opener->kind == TOK_ON) {
+                errorElseInOn(p, token);
+            } else if (opener->kind == TOK_APPLY_IF) {
                 errorAt(p, token, "`apply_if` takes at most one `else` branch");
             } else {
                 errorAt(p, token,
@@ -231,7 +329,7 @@ static bool parseActions(Parser *p, ActionList *actions, bool allowElse,
             }
             return false;
         case TOK_SHELL:
-            if (!parseShell(p, actions, &capacity)) {
+            if (!parseShell(p, actions, capacity)) {
                 return false;
             }
             break;
@@ -253,6 +351,15 @@ static bool parseActions(Parser *p, ActionList *actions, bool allowElse,
             return false;
         }
     }
+}
+
+static bool parseActions(Parser *p, ActionList *actions, bool allowElse,
+                         const Token *opener)
+{
+    size_t capacity = 0;
+    actions->items = NULL;
+    actions->count = 0;
+    return parseActionsInto(p, actions, &capacity, allowElse, opener);
 }
 
 static bool parseApply(Parser *p, Stmt *stmt)
@@ -441,6 +548,62 @@ static bool parseStmt(Parser *p, const Unit *unit, Stmt *stmt)
     }
 }
 
+/*
+ * Parses the statements of a unit up to `end`, which is not consumed. on is
+ * the `on` token of the enclosing block within the unit, or NULL for the
+ * body of the unit itself. The statements of nested `on` blocks are added to
+ * the unit.
+ */
+static bool parseUnitBody(Parser *p, Unit *unit, size_t *capacity,
+                          const Token *pkg, const Token *on)
+{
+    for (;;) {
+        skipNewlines(p);
+        const Token *token = peek(p);
+        if (token->kind == TOK_END) {
+            return true;
+        }
+        if (token->kind == TOK_EOF) {
+            if (on) {
+                errorAt(p, token,
+                        "expected `end` to close `on` opened on line %d, "
+                        "found end of file",
+                        on->line);
+            } else {
+                errorAt(p, token,
+                        "expected `end` to close unit `%s` opened on line "
+                        "%d, found end of file",
+                        unit->name.text, pkg->line);
+            }
+            return false;
+        }
+        if (token->kind == TOK_ELSE && on) {
+            errorElseInOn(p, token);
+            return false;
+        }
+        if (token->kind == TOK_ON) {
+            size_t index;
+            SystemSet outer;
+            if (!beginOn(p, &index, &outer) ||
+                !parseUnitBody(p, unit, capacity, pkg, token) ||
+                !endOn(p, index, outer)) {
+                return false;
+            }
+            continue;
+        }
+
+        unit->stmts = arenaGrow(p->arena, unit->stmts, unit->stmtCount,
+                                capacity, sizeof *unit->stmts);
+        Stmt *stmt = &unit->stmts[unit->stmtCount];
+        memset(stmt, 0, sizeof *stmt);
+        if (!parseStmt(p, unit, stmt)) {
+            return false;
+        }
+        stmt->systems = p->systems;
+        unit->stmtCount++;
+    }
+}
+
 static bool parseUnit(Parser *p, Unit *unit)
 {
     const Token *pkg = advance(p);
@@ -460,26 +623,8 @@ static bool parseUnit(Parser *p, Unit *unit)
     unit->isBlock = true;
 
     size_t capacity = 0;
-    for (;;) {
-        skipNewlines(p);
-        if (at(p, TOK_END)) {
-            break;
-        }
-        if (at(p, TOK_EOF)) {
-            errorAt(p, peek(p),
-                    "expected `end` to close unit `%s` opened on line %d, "
-                    "found end of file",
-                    unit->name.text, pkg->line);
-            return false;
-        }
-        unit->stmts = arenaGrow(p->arena, unit->stmts, unit->stmtCount,
-                                &capacity, sizeof *unit->stmts);
-        Stmt *stmt = &unit->stmts[unit->stmtCount];
-        memset(stmt, 0, sizeof *stmt);
-        if (!parseStmt(p, unit, stmt)) {
-            return false;
-        }
-        unit->stmtCount++;
+    if (!parseUnitBody(p, unit, &capacity, pkg, NULL)) {
+        return false;
     }
 
     const Token *end = advance(p);
@@ -488,39 +633,80 @@ static bool parseUnit(Parser *p, Unit *unit)
     return expect(p, TOK_NEWLINE, "after `end`");
 }
 
+/*
+ * Parses units up to the end of the file, or, within the `on` block opened
+ * by on, up to its `end`, which is not consumed.
+ */
+static bool parseTopLevel(Parser *p, const Token *on)
+{
+    Manifest *manifest = p->manifest;
+    for (;;) {
+        skipNewlines(p);
+        const Token *token = peek(p);
+        switch (token->kind) {
+        case TOK_EOF:
+            if (on) {
+                errorAt(p, token,
+                        "expected `end` to close `on` opened on line %d, "
+                        "found end of file",
+                        on->line);
+                return false;
+            }
+            return true;
+        case TOK_END:
+            if (on) {
+                return true;
+            }
+            break;
+        case TOK_ELSE:
+            if (on) {
+                errorElseInOn(p, token);
+                return false;
+            }
+            break;
+        case TOK_ON: {
+            size_t index;
+            SystemSet outer;
+            if (!beginOn(p, &index, &outer) || !parseTopLevel(p, token) ||
+                !endOn(p, index, outer)) {
+                return false;
+            }
+            continue;
+        }
+        case TOK_PKG: {
+            manifest->units =
+                arenaGrow(p->arena, manifest->units, manifest->count,
+                          &p->unitCapacity, sizeof *manifest->units);
+            Unit *unit = &manifest->units[manifest->count];
+            memset(unit, 0, sizeof *unit);
+            unit->systems = p->systems;
+            if (!parseUnit(p, unit)) {
+                return false;
+            }
+            manifest->count++;
+            continue;
+        }
+        default:
+            break;
+        }
+        errorAt(p, token, "expected `pkg` or `on` at top level, found %s",
+                describe(p, token));
+        return false;
+    }
+}
+
 bool parseManifest(Arena *arena, const TokenList *tokens, Manifest *manifest,
                    Diag *diag)
 {
+    memset(manifest, 0, sizeof *manifest);
     Parser p = {
         .arena = arena,
         .diag = diag,
         .tokens = tokens->items,
         .count = tokens->count,
         .pos = 0,
+        .manifest = manifest,
+        .systems = SYSTEM_ALL,
     };
-    manifest->units = NULL;
-    manifest->count = 0;
-    size_t capacity = 0;
-
-    for (;;) {
-        skipNewlines(&p);
-        const Token *token = peek(&p);
-        if (token->kind == TOK_EOF) {
-            return true;
-        }
-        if (token->kind != TOK_PKG) {
-            errorAt(&p, token, "expected `pkg` at top level, found %s",
-                    describe(&p, token));
-            return false;
-        }
-
-        manifest->units = arenaGrow(arena, manifest->units, manifest->count,
-                                    &capacity, sizeof *manifest->units);
-        Unit *unit = &manifest->units[manifest->count];
-        memset(unit, 0, sizeof *unit);
-        if (!parseUnit(&p, unit)) {
-            return false;
-        }
-        manifest->count++;
-    }
+    return parseTopLevel(&p, NULL);
 }

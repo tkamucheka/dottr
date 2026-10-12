@@ -227,9 +227,47 @@ int main(int argc, char **argv)
         goto done;
     }
 
+    if (!managerName) {
+        manager = detectPackageManager();
+    }
+    char systemName[96];
+    SystemSet systems = packageManagerSystems(manager);
+    if (systems == 0) {
+        /*
+         * Without a package manager, the operating system selects the view,
+         * which requires that its package managers see the same manifest.
+         */
+        switch (hostOperatingSystem()) {
+        case OS_LINUX: systems = SYSTEM_LINUX; break;
+        case OS_MACOS: systems = SYSTEM_MACOS; break;
+        case OS_WINDOWS: systems = SYSTEM_WINDOWS; break;
+        case OS_OTHER: systems = SYSTEM_ALL; break;
+        }
+        if (!viewsAgree(&manifest, systems)) {
+            fprintf(stderr,
+                    "dottr: error: no supported package manager was found, "
+                    "and %s selects statements by package manager; name one "
+                    "with --package-manager\n",
+                    path);
+            goto done;
+        }
+    }
+    Manifest view;
+    if (!selectManifest(&arena, &manifest, systems, &view)) {
+        fprintf(stderr, "dottr: error: internal error: invalid view\n");
+        goto done;
+    }
+    describeSystems(systems, systemName, sizeof systemName);
+
     selected = xmalloc((unitCount + 1) * sizeof *selected);
     for (size_t i = 0; i < unitCount; i++) {
-        selected[i] = findUnit(&manifest, unitNames[i]);
+        selected[i] = findUnit(&view, unitNames[i]);
+        if (!selected[i] && findUnit(&manifest, unitNames[i])) {
+            fprintf(stderr,
+                    "dottr: error: unit '%s' of %s does not exist on %s\n",
+                    unitNames[i], path, systemName);
+            goto done;
+        }
         if (!selected[i]) {
             fprintf(stderr, "dottr: error: %s declares no unit named '%s'\n",
                     path, unitNames[i]);
@@ -237,10 +275,7 @@ int main(int argc, char **argv)
         }
     }
 
-    if (!managerName) {
-        manager = detectPackageManager();
-    }
-    status = evaluateManifest(&manifest,
+    status = evaluateManifest(&view,
                               command == COMMAND_PLAN ? EVAL_PLAN : EVAL_APPLY,
                               manager, selected, unitCount, &diag);
 

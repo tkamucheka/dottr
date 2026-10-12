@@ -5,6 +5,7 @@
 #include <stddef.h>
 
 #include "dottr/lexer.h"
+#include "dottr/package.h"
 
 /* A name with the source position at which it was written. */
 typedef struct {
@@ -26,6 +27,8 @@ typedef enum {
 
 typedef struct {
     ActionKind kind;
+    /* Systems on which the action applies, narrowed by enclosing `on`. */
+    SystemSet systems;
     /* Position of the `shell` keyword. */
     int line;
     int column;
@@ -54,6 +57,8 @@ typedef enum {
 
 typedef struct {
     StmtKind kind;
+    /* Systems on which the statement applies, narrowed by enclosing `on`. */
+    SystemSet systems;
     int line;
     int column;
     union {
@@ -92,6 +97,8 @@ typedef struct Unit Unit;
 
 struct Unit {
     Name name;
+    /* Systems on which the unit exists, narrowed by enclosing `on`. */
+    SystemSet systems;
     bool isBlock;
     /* Position of the closing `end` of a block-form unit; 0 otherwise. */
     int endLine;
@@ -103,9 +110,28 @@ struct Unit {
     size_t depCount;
 };
 
+/*
+ * An `on` block. The parser records the systems of its contents in their
+ * own systems fields; the block itself is kept for editors.
+ */
+typedef struct {
+    int line;
+    int column;
+    /* Position of the closing `end`. */
+    int endLine;
+    int endColumn;
+    Name *selectors;
+    size_t selectorCount;
+    /* The systems of the block's contents, including enclosing blocks. */
+    SystemSet systems;
+} OnBlock;
+
 typedef struct {
     Unit *units;
     size_t count;
+    /* Every `on` block, in source order. */
+    OnBlock *onBlocks;
+    size_t onCount;
 } Manifest;
 
 const char *predicateKindName(PredicateKind kind);

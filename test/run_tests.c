@@ -96,6 +96,12 @@ static const CliCase cliCases[] = {
     {"package manager outside plan and apply",
      {"check", "--package-manager", "apt", NULL}, 2,
      "dottr: error: unknown option '--package-manager'", NULL, NULL},
+    {"unit of another system",
+     {"plan", "--package-manager", "apt", "-f",
+      "test/cases/on-plan-apt.dotfile", "rectangle", NULL},
+     2, "dottr: error: unit 'rectangle' of test/cases/on-plan-apt.dotfile "
+        "does not exist on apt",
+     NULL, NULL},
     {"apply with the package manager of another system",
      {"apply", "--package-manager", "winget", "-f",
       "test/cases/apply-empty.dotfile", NULL},

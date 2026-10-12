@@ -1,0 +1,1 @@
+test/cases/on-no-system.dotfile:5:3: error: this `on` block applies on no system: it is inside a block for windows

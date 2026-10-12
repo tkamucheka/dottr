@@ -43,6 +43,7 @@ static const struct {
     {"apply", TOK_APPLY},
     {"apply_if", TOK_APPLY_IF},
     {"apply_unless", TOK_APPLY_UNLESS},
+    {"on", TOK_ON},
     {"else", TOK_ELSE},
     {"shell", TOK_SHELL},
     {"command", TOK_COMMAND},
@@ -585,6 +586,7 @@ const char *tokenKindName(TokenKind kind)
     case TOK_APPLY: return "`apply`";
     case TOK_APPLY_IF: return "`apply_if`";
     case TOK_APPLY_UNLESS: return "`apply_unless`";
+    case TOK_ON: return "`on`";
     case TOK_ELSE: return "`else`";
     case TOK_SHELL: return "`shell`";
     case TOK_COMMAND: return "`command`";

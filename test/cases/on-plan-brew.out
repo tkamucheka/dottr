@@ -1,0 +1,19 @@
+unit git
+  install package git: brew install git
+
+unit rectangle
+  install package rectangle: brew install rectangle
+
+unit neovim
+  install package neovim (child unit neovim-child-neovim): brew install neovim
+
+unit fd
+  install package fd (child unit fd-child-fd): brew install fd
+
+unit tpm
+  needs git
+  local TPM_DIR = "/nonexistent/linux/tpm"
+  check directory TPM_DIR: /nonexistent/linux/tpm (currently false)
+  apply_unless TPM_DIR
+    shell (sh)
+      git clone https://github.com/tmux-plugins/tpm "$TPM_DIR"

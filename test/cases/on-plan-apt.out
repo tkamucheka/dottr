@@ -1,0 +1,16 @@
+unit git
+  install package git: sudo apt-get install -y git
+
+unit neovim
+  install package neovim (child unit neovim-child-neovim): sudo apt-get install -y neovim
+
+unit fd
+  install package fd-find (child unit fd-child-fd-find): sudo apt-get install -y fd-find
+
+unit tpm
+  needs git
+  local TPM_DIR = "/nonexistent/linux/tpm"
+  check directory TPM_DIR: /nonexistent/linux/tpm (currently false)
+  apply_unless TPM_DIR
+    shell (sh)
+      git clone https://github.com/tmux-plugins/tpm "$TPM_DIR"
