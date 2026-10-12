@@ -1,5 +1,6 @@
 # args: apply
 # status: 0
+# os: linux, macos
 pkg a do
   local D = "@{dottr.env.home}/d"
   check directory D

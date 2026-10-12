@@ -938,10 +938,11 @@ static const struct {
            "`windows`) or a package manager (`pacman`, `apt`, `dnf`, "
            "`brew`, `winget`). It may contain units at top level, "
            "statements in a unit, and `shell` blocks in `apply`."},
-    {"shell", "`shell do`, a fenced script (```, ```sh, ```bash, or ```zsh), "
-              "and `end`. The script runs as `INTERPRETER -e -c SCRIPT` in a "
-              "process of its own, with the unit's variables in its "
-              "environment."},
+    {"shell", "`shell do`, a fenced script, and `end`. The info string of the "
+              "fence names the interpreter: `sh`, `bash`, `zsh`, `pwsh`, or "
+              "`powershell`; without one, the script runs with `sh`, or with "
+              "`powershell` on Windows. The script runs in a process of its "
+              "own, with the unit's variables in its environment."},
     {"command", "Predicate: true if the value names an executable regular "
                 "file, directly if it contains `/`, otherwise through "
                 "`PATH`."},
@@ -1169,7 +1170,8 @@ static void hoverBuiltin(StrBuf *text, const Occurrence *o)
         return;
     }
     strBufAppendStr(text, "\n\nThe home directory: `$HOME`, or the entry of "
-                          "the password database if `$HOME` is unset.");
+                          "the password database if `$HOME` is unset; "
+                          "`%USERPROFILE%` on Windows.");
     const char *home = hostHomeDirectory();
     if (home) {
         strBufAppendStr(text, "\n\nValue: ");
@@ -1584,7 +1586,7 @@ static void handleRename(Server *s, const JsonValue *params, Reply *reply)
         if (!isPlainIdentifier(newName)) {
             reply->errorMessage = "a variable name must be an identifier "
                                   "that is not a keyword";
-        } else if (isProtectedVariable(newName)) {
+        } else if (protectedVariable(newName)) {
             reply->errorMessage = "that name would replace an environment "
                                   "variable that shells depend on";
         } else {
@@ -1720,8 +1722,8 @@ static void spanListAdd(SpanList *list, Span span)
 }
 
 /*
- * Line-based scan of a document, which does
- * not require the document to parse.
+ * Line-based scan of a document, which does not require the document to
+ * parse.
  */
 typedef struct {
     bool inRaw;

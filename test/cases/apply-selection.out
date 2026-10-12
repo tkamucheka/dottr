@@ -1,7 +1,7 @@
 ==> unit a
-  -> shell (sh), line 5
+  -> shell (sh), line 6
 a ran
 ==> unit b
-  -> shell (sh), line 15
+  -> shell (sh), line 16
 b ran
 summary: 2 satisfied, 0 failed, 0 skipped

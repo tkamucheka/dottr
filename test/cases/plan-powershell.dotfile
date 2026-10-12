@@ -1,0 +1,22 @@
+# args: plan --package-manager pacman
+# status: 0
+pkg a do
+  local DIR = "@{dottr.env.home}/a"
+  apply do
+    shell do
+      ```
+      mkdir -p "$DIR"
+      ```
+    end
+    shell do
+      ```pwsh
+      New-Item -ItemType Directory -Force $env:DIR
+      ```
+    end
+    shell do
+      ```powershell
+      New-Item -ItemType Directory -Force $env:DIR
+      ```
+    end
+  end
+end

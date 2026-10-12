@@ -1,5 +1,6 @@
 #include "dottr/sema.h"
 
+#include <ctype.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -13,8 +14,12 @@ static const char *const builtinReferences[] = {
  * how a shell starts or finds commands.
  */
 static const char *const protectedVariables[] = {
-    "BASHOPTS", "BASH_ENV", "CDPATH", "ENV", "HOME", "IFS",
-    "OLDPWD", "PATH", "PWD", "SHELL", "SHELLOPTS", "ZDOTDIR",
+    /* POSIX shells. */
+    "BASHOPTS", "BASH_ENV", "CDPATH", "ENV", "HOME", "IFS", "OLDPWD", "PATH",
+    "PWD", "SHELL", "SHELLOPTS", "ZDOTDIR",
+    /* PowerShell and process creation on Windows. */
+    "APPDATA", "ComSpec", "LOCALAPPDATA", "PATHEXT", "PSModulePath",
+    "SystemRoot", "TEMP", "TMP", "USERPROFILE",
 };
 
 typedef struct {
@@ -151,15 +156,25 @@ static void checkTemplate(Analyzer *an, const Unit *unit,
     }
 }
 
-bool isProtectedVariable(const char *name)
+static bool equalIgnoringCase(const char *a, const char *b)
+{
+    for (; *a && *b; a++, b++) {
+        if (tolower((unsigned char)*a) != tolower((unsigned char)*b)) {
+            return false;
+        }
+    }
+    return *a == *b;
+}
+
+const char *protectedVariable(const char *name)
 {
     for (size_t i = 0;
          i < sizeof protectedVariables / sizeof protectedVariables[0]; i++) {
-        if (strcmp(protectedVariables[i], name) == 0) {
-            return true;
+        if (equalIgnoringCase(protectedVariables[i], name)) {
+            return protectedVariables[i];
         }
     }
-    return false;
+    return NULL;
 }
 
 static void analyzeUnitBody(Analyzer *an, const Unit *unit)
@@ -173,11 +188,12 @@ static void analyzeUnitBody(Analyzer *an, const Unit *unit)
         case STMT_LOCAL: {
             const Name *name = &stmt->as.local.name;
             checkTemplate(an, unit, &stmt->as.local.value, &locals);
-            if (isProtectedVariable(name->text)) {
+            const char *variable = protectedVariable(name->text);
+            if (variable) {
                 diagError(an->diag, name->line, name->column,
                           "variable `%s` would replace the environment "
                           "variable %s in shell blocks; choose another name",
-                          name->text, name->text);
+                          name->text, variable);
             }
             if (nameSetHas(&locals, name->text)) {
                 diagError(an->diag, name->line, name->column,

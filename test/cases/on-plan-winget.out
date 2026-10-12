@@ -12,5 +12,5 @@ unit tpm
   local TPM_DIR = "/nonexistent/windows/tpm"
   check directory TPM_DIR: /nonexistent/windows/tpm (currently false)
   apply_unless TPM_DIR
-    shell (sh)
+    shell (powershell)
       git clone https://github.com/tmux-plugins/tpm $env:TPM_DIR

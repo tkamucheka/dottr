@@ -26,8 +26,8 @@ typedef enum {
 } PackageManager;
 
 /*
- * A set of systems, one bit per package
- * manager. The statements of an `on` block apply on a set of systems.
+ * A set of systems, one bit per package manager. The statements of an `on`
+ * block apply on a set of systems.
  */
 typedef unsigned SystemSet;
 
@@ -87,5 +87,14 @@ PackageManager detectPackageManager(void);
 bool packageInstallCommand(PackageManager manager, const char *package,
                            bool root, const char **argv, char *message,
                            size_t messageSize);
+
+/*
+ * Fills argv with a command that exits with status 0 if package is already
+ * installed, for a manager that reports the installation of an installed
+ * package as an error (winget). Returns false for the other managers, whose
+ * installation succeeds for an installed package.
+ */
+bool packageQueryCommand(PackageManager manager, const char *package,
+                         const char **argv);
 
 #endif

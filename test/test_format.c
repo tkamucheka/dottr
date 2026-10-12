@@ -1,5 +1,3 @@
-#define _POSIX_C_SOURCE 200809L
-
 /*
  * Formatter tests. Every manifest in test/cases that lexes and parses, and the
  * repository manifest, must format to an equivalent manifest (formatEquivalent)
@@ -7,7 +5,6 @@
  * tested on pairs that differ.
  */
 
-#include <dirent.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -16,6 +13,7 @@
 #include "dottr/lexer.h"
 #include "dottr/parser.h"
 #include "dottr/util.h"
+#include "platform.h"
 #include "test.h"
 
 static bool parses(const char *source, size_t length)
@@ -84,22 +82,20 @@ static void testFixtures(void)
 {
     checkFile("manifest.dotfile");
 
-    DIR *dir = opendir("test/cases");
-    if (!dir) {
+    size_t count;
+    char **names = testListFiles("test/cases", ".dotfile", &count);
+    if (!names) {
         testCount++;
-        TEST_FAIL("format: cannot open test/cases");
+        TEST_FAIL("format: cannot read test/cases");
         return;
     }
-    struct dirent *entry;
-    while ((entry = readdir(dir)) != NULL) {
-        size_t length = strlen(entry->d_name);
-        if (length > 8 && strcmp(entry->d_name + length - 8, ".dotfile") == 0) {
-            char path[1024];
-            snprintf(path, sizeof path, "test/cases/%s", entry->d_name);
-            checkFile(path);
-        }
+    for (size_t i = 0; i < count; i++) {
+        char path[1024];
+        snprintf(path, sizeof path, "test/cases/%s", names[i]);
+        checkFile(path);
+        free(names[i]);
     }
-    closedir(dir);
+    free(names);
 }
 
 static void expectFormat(const char *name, const char *source,

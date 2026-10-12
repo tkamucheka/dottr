@@ -4,12 +4,12 @@
   -> check command ABSOLUTE: true
   -> check command HOME_DIR: false
   -> apply_if SH: fact is true, evaluating first branch
-  -> shell (sh), line 13
+  -> shell (sh), line 14
 sh is a command
   -> apply_unless MISSING: fact is false, evaluating body
-  -> shell (sh), line 20
+  -> shell (sh), line 21
 dottr-no-such-command is not a command
   -> apply_unless HOME_DIR: fact is false, evaluating body
-  -> shell (sh), line 27
+  -> shell (sh), line 28
 a directory is not a command
 summary: 1 satisfied, 0 failed, 0 skipped

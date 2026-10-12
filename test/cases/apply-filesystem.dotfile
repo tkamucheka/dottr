@@ -1,5 +1,6 @@
 # args: apply
 # status: 0
+# os: linux, macos
 pkg setup do
   local ROOT = "@{dottr.env.home}/root"
   local NESTED = "@{ROOT}/a/b/c"

@@ -65,7 +65,7 @@ INTERP        = "@{" word { "." word } "}" ;
 (* Raw blocks *)
 raw_block     = open_fence { raw_line } close_fence ;
 open_fence    = { blank } "```" [ info_string ] { blank } line_end ;
-info_string   = "sh" | "bash" | "zsh" ;
+info_string   = "sh" | "bash" | "zsh" | "pwsh" | "powershell" ;
 close_fence   = { blank } "```" { blank } ( line_end | ? end of input ? ) ;
 raw_line      = ( { ? any byte other than NUL and line feed ? } line_end )
                 - close_fence ;

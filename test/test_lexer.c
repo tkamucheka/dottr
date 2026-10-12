@@ -1,10 +1,9 @@
-#define _POSIX_C_SOURCE 200809L
-
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 
 #include "dottr/lexer.h"
+#include "platform.h"
 #include "test.h"
 
 typedef struct {
@@ -20,13 +19,13 @@ static void lexBytes(const char *source, size_t length, LexResult *result)
     arenaInit(&result->arena);
     result->diagnostics = NULL;
     result->diagnosticsLength = 0;
-    FILE *stream =
-        open_memstream(&result->diagnostics, &result->diagnosticsLength);
+    FILE *stream = testOutputStream();
     Diag diag;
     diagInit(&diag, "t.dotfile", stream);
     result->ok =
         lexSource(&result->arena, source, length, &result->tokens, &diag);
-    fclose(stream);
+    result->diagnostics =
+        testCloseOutput(stream, &result->diagnosticsLength);
 }
 
 static void lexText(const char *source, LexResult *result)
@@ -284,6 +283,18 @@ static void testRawBlocks(void)
     }
     lexFree(&r);
 
+    lexText("```pwsh\nWrite-Output $env:A\n```\n```powershell\n```\n", &r);
+    expectTemplate("powershell raw block", &r, 0, "T(Write-Output $env:A\n)");
+    if (r.ok) {
+        testCount++;
+        if (r.tokens.items[0].dialect != SHELL_PWSH ||
+            r.tokens.items[2].dialect != SHELL_POWERSHELL) {
+            TEST_FAIL("lexer raw block: expected pwsh and powershell "
+                      "dialects");
+        }
+    }
+    lexFree(&r);
+
     lexText("```\ngit rev-parse @{u}\n```", &r);
     expectTemplate("raw block closed at end of input", &r, 0,
                    "T(git rev-parse @{u}\n)");
@@ -308,7 +319,10 @@ static void testErrors(void)
                 "closing ``` line\n");
     expectError("unknown info string", "```python\n```\n",
                 "t.dotfile:1:4: error: unknown info string 'python'; expected "
-                "sh, bash, or zsh\n");
+                "sh, bash, zsh, pwsh, or powershell\n");
+    expectError("info string case", "```PowerShell\n```\n",
+                "t.dotfile:1:4: error: unknown info string 'PowerShell'; "
+                "expected sh, bash, zsh, pwsh, or powershell\n");
     expectError("info string after space", "``` sh\n```\n",
                 "t.dotfile:1:4: error: the info string must immediately follow "
                 "the fence\n");

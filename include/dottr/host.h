@@ -5,15 +5,34 @@
 #include <stddef.h>
 
 /*
- * Home directory of the invoking user: $HOME, or the password database entry
- * if $HOME is unset or empty. Returns NULL if neither is available.
+ * The host layer: the operating system services dottr uses. It is
+ * implemented by host_posix.c on Linux and macOS and by host_windows.c on
+ * Windows. Strings are UTF-8.
+ */
+
+/*
+ * Prepares the process: on Windows, puts the standard streams in binary mode,
+ * so that output has the same line endings on every system, and sets the
+ * console output code page to UTF-8. Called first by every program.
+ */
+void hostInitialize(void);
+
+/*
+ * Home directory of the invoking user. On POSIX systems: $HOME, or the
+ * password database entry if $HOME is unset or empty. On Windows:
+ * %USERPROFILE%. Returns NULL if none is available.
  */
 const char *hostHomeDirectory(void);
 
-/*
- * Predicates of `check`. Symbolic links are
- * followed.
- */
+/* Why hostHomeDirectory returns NULL, for a diagnostic. */
+#ifdef _WIN32
+#define HOST_HOME_MISSING "USERPROFILE is unset"
+#else
+#define HOST_HOME_MISSING                                                      \
+    "HOME is unset and the password database has no entry"
+#endif
+
+/* Predicates of `check`. Symbolic links are followed. */
 bool hostCommandExists(const char *command);
 bool hostIsFile(const char *path);
 bool hostIsDirectory(const char *path);
@@ -24,6 +43,7 @@ bool hostIsDirectory(const char *path);
  */
 bool hostCreateDirectory(const char *path, char *message, size_t messageSize);
 
+/* Whether dottr runs as root. Always false on Windows. */
 bool hostIsRoot(void);
 
 /* An environment variable to set in a child process. */
@@ -41,5 +61,22 @@ typedef struct {
  */
 int hostRun(char *const argv[], const HostVariable *variables,
             size_t variableCount);
+
+/*
+ * Runs argv as hostRun does, without added variables, and discards its
+ * standard output and standard error.
+ */
+int hostRunSilently(char *const argv[]);
+
+/*
+ * Writes length bytes of contents to a new file named name in a new private
+ * temporary directory and stores its path in path. Returns false and writes
+ * a description to message on failure. hostRemoveTemporary removes the file
+ * and its directory.
+ */
+bool hostWriteTemporary(const char *name, const char *contents, size_t length,
+                        char *path, size_t pathSize, char *message,
+                        size_t messageSize);
+void hostRemoveTemporary(const char *path);
 
 #endif

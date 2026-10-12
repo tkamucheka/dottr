@@ -40,9 +40,11 @@ Unit *findUnit(const Manifest *manifest, const char *name);
 bool isBuiltinReference(const char *path);
 
 /*
- * Whether a variable name is reserved because the environment variable of
- * that name controls how a shell starts or finds commands.
+ * The environment variable that a variable name would replace, if that
+ * variable controls how a shell starts or finds commands, and NULL
+ * otherwise. Names are compared without regard to case, as Windows compares
+ * environment variable names.
  */
-bool isProtectedVariable(const char *name);
+const char *protectedVariable(const char *name);
 
 #endif

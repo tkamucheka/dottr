@@ -6,4 +6,6 @@ test/cases/sema-variables.dotfile:9:14: error: unknown reference `foo.bar`; a re
 test/cases/sema-variables.dotfile:10:14: error: undefined variable `undefined`
 test/cases/sema-variables.dotfile:11:9: error: variable `PATH` would replace the environment variable PATH in shell blocks; choose another name
 test/cases/sema-variables.dotfile:12:9: error: variable `HOME` would replace the environment variable HOME in shell blocks; choose another name
-test/cases/sema-variables.dotfile:16:14: error: undefined variable `B`
+test/cases/sema-variables.dotfile:13:9: error: variable `Path` would replace the environment variable PATH in shell blocks; choose another name
+test/cases/sema-variables.dotfile:14:9: error: variable `userprofile` would replace the environment variable USERPROFILE in shell blocks; choose another name
+test/cases/sema-variables.dotfile:17:14: error: undefined variable `B`

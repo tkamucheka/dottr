@@ -35,6 +35,8 @@ typedef struct {
     const Manifest *manifest;
     EvalMode mode;
     PackageManager manager;
+    /* Whether the manifest is evaluated for Windows. */
+    bool windows;
     Diag *diag;
     Arena arena;
 } Evaluator;
@@ -104,8 +106,8 @@ static bool render(Evaluator *ev, const Scope *scope, const Template *template,
             value = hostHomeDirectory();
             if (!value) {
                 diagError(ev->diag, part->line, part->column,
-                          "cannot determine the home directory: HOME is "
-                          "unset and the password database has no entry");
+                          "cannot determine the home directory: "
+                          HOST_HOME_MISSING);
                 strBufFree(&buf);
                 return false;
             }
@@ -166,6 +168,13 @@ static bool installPackage(Evaluator *ev, const char *package,
         return true;
     }
 
+    const char *query[PACKAGE_COMMAND_MAX];
+    if (packageQueryCommand(ev->manager, package, query) &&
+        hostRunSilently((char *const *)query) == 0) {
+        printf("  -> package %s is installed\n", package);
+        return true;
+    }
+
     printf("  -> install package %s", package);
     if (childName) {
         printf(" (child unit %s)", childName);
@@ -205,12 +214,59 @@ static void printScript(const char *script)
     }
 }
 
+/* Statements that PowerShell runs before the script of a block. */
+static const char powerShellPreamble[] = "$ErrorActionPreference = 'Stop'; ";
+static const char pwshPreamble[] =
+    "$PSNativeCommandUseErrorActionPreference = $true; ";
+
+/*
+ * Runs a PowerShell script from a temporary file, which leaves standard input
+ * to the script. The preamble stops the script at the first error; it is
+ * written on the first line of the script, so that the line numbers of
+ * PowerShell's messages are those of the block. Stores the exit status as
+ * hostRun returns it; returns false after reporting an error if the script
+ * cannot be written.
+ */
+static bool runPowerShell(Evaluator *ev, const Scope *scope,
+                          const Action *action, const char *interpreter,
+                          const char *script, int *status)
+{
+    StrBuf file;
+    strBufInit(&file);
+    /* The byte order mark makes Windows PowerShell read the file as UTF-8. */
+    strBufAppendStr(&file, "\xEF\xBB\xBF");
+    strBufAppendStr(&file, powerShellPreamble);
+    if (action->dialect == SHELL_PWSH) {
+        strBufAppendStr(&file, pwshPreamble);
+    }
+    strBufAppendStr(&file, script);
+
+    char path[4096];
+    char message[512];
+    bool written = hostWriteTemporary("block.ps1", file.data, file.length,
+                                      path, sizeof path, message,
+                                      sizeof message);
+    strBufFree(&file);
+    if (!written) {
+        diagError(ev->diag, action->line, action->column,
+                  "cannot write the script of the shell block: %s", message);
+        return false;
+    }
+
+    const char *argv[] = {interpreter, "-NoLogo", "-NoProfile",
+                          "-ExecutionPolicy", "Bypass", "-File", path, NULL};
+    *status = hostRun((char *const *)argv, scope->locals, scope->localCount);
+    hostRemoveTemporary(path);
+    return true;
+}
+
 static bool runActions(Evaluator *ev, const Scope *scope,
                        const ActionList *actions)
 {
     for (size_t i = 0; i < actions->count; i++) {
         const Action *action = &actions->items[i];
-        const char *interpreter = shellDialectInterpreter(action->dialect);
+        const char *interpreter =
+            shellDialectInterpreter(action->dialect, ev->windows);
 
         /* A raw block holds only text, so rendering cannot fail here. */
         const char *script;
@@ -225,9 +281,17 @@ static bool runActions(Evaluator *ev, const Scope *scope,
         }
 
         printf("  -> shell (%s), line %d\n", interpreter, action->line);
-        const char *argv[] = {interpreter, "-e", "-c", script, NULL};
-        int status = hostRun((char *const *)argv, scope->locals,
+        int status;
+        if (shellDialectIsPowerShell(action->dialect, ev->windows)) {
+            if (!runPowerShell(ev, scope, action, interpreter, script,
+                               &status)) {
+                return false;
+            }
+        } else {
+            const char *argv[] = {interpreter, "-e", "-c", script, NULL};
+            status = hostRun((char *const *)argv, scope->locals,
                              scope->localCount);
+        }
         if (status != 0) {
             if (status < 0) {
                 diagError(ev->diag, action->line, action->column,
@@ -413,7 +477,10 @@ int evaluateManifest(const Manifest *manifest, EvalMode mode,
                      PackageManager manager, Unit *const *selected,
                      size_t selectedCount, Diag *diag)
 {
-    Evaluator ev = {manifest, mode, manager, diag, {0}};
+    OperatingSystem os = manager == PACKAGE_MANAGER_NONE
+                             ? hostOperatingSystem()
+                             : packageManagerSystem(manager);
+    Evaluator ev = {manifest, mode, manager, os == OS_WINDOWS, diag, {0}};
     arenaInit(&ev.arena);
 
     size_t total = manifest->count;

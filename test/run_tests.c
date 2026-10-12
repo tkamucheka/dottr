@@ -1,5 +1,3 @@
-#define _POSIX_C_SOURCE 200809L
-
 /*
  * Test program for dottr. Runs the lexer tests in test_lexer.c, then the
  * command-line tests: the fixtures in test/cases and the cases in
@@ -9,20 +7,16 @@
  *     build/dottr-test --update  rewrite the expected output of fixtures
  */
 
-#include <dirent.h>
-#include <errno.h>
-#include <fcntl.h>
 #include <stdarg.h>
 #include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <sys/stat.h>
-#include <sys/types.h>
-#include <sys/wait.h>
-#include <unistd.h>
 
+#include "dottr/host.h"
+#include "dottr/package.h"
 #include "dottr/util.h"
+#include "platform.h"
 #include "test.h"
 
 #define DOTTR_BINARY "build/dottr"
@@ -31,6 +25,15 @@
 #define CASES_DIR "test/cases"
 #define FIXTURE_SUFFIX ".dotfile"
 #define MAX_ARGS 32
+
+/* A package manager of another operating system than the host's. */
+#ifdef _WIN32
+#define FOREIGN_MANAGER "pacman"
+#define FOREIGN_SYSTEM "linux"
+#else
+#define FOREIGN_MANAGER "winget"
+#define FOREIGN_SYSTEM "windows"
+#endif
 
 int testFailures = 0;
 int testCount = 0;
@@ -103,9 +106,11 @@ static const CliCase cliCases[] = {
         "does not exist on apt",
      NULL, NULL},
     {"apply with the package manager of another system",
-     {"apply", "--package-manager", "winget", "-f",
+     {"apply", "--package-manager", FOREIGN_MANAGER, "-f",
       "test/cases/apply-empty.dotfile", NULL},
-     2, "dottr: error: package manager 'winget' is for windows", NULL, NULL},
+     2, "dottr: error: package manager '" FOREIGN_MANAGER "' is for "
+        FOREIGN_SYSTEM,
+     NULL, NULL},
     {"repository manifest is formatted",
      {"fmt", "--check", "-f", "manifest.dotfile", NULL}, 0, NULL, NULL, NULL},
     {"fmt with units", {"fmt", "tmux", NULL}, 2,
@@ -166,29 +171,6 @@ typedef struct {
     int status;
 } RunResult;
 
-static bool makeTempDir(char *buffer, size_t size)
-{
-    const char *base = getenv("TMPDIR");
-    if (!base || !*base) {
-        base = "/tmp";
-    }
-    snprintf(buffer, size, "%s/dottr-test-XXXXXX", base);
-    return mkdtemp(buffer) != NULL;
-}
-
-static void removeTree(const char *path)
-{
-    pid_t pid = fork();
-    if (pid == 0) {
-        execlp("rm", "rm", "-rf", "--", path, (char *)NULL);
-        _exit(127);
-    }
-    if (pid > 0) {
-        int status;
-        waitpid(pid, &status, 0);
-    }
-}
-
 /* Replaces every occurrence of from in text with to. */
 static char *replaceAll(const char *text, const char *from, const char *to)
 {
@@ -217,92 +199,66 @@ static bool writeFile(const char *path, const char *data, size_t length)
 }
 
 /*
- * Runs a program with the given arguments, HOME set to a fresh temporary
- * directory, standard input read from input (or /dev/null if it is NULL),
- * and standard output and error captured together. Occurrences of the
- * temporary directory in the output are replaced by "$HOME".
+ * Runs a program with the given arguments, its home directory (HOME and
+ * USERPROFILE) set to a fresh temporary directory, standard input read from
+ * input (or empty if it is NULL), and standard output and error captured
+ * together. Occurrences of the temporary directory in the output are replaced
+ * by "$HOME".
  */
 static bool runProgram(const char *program, const char *const *args,
                        const char *input, RunResult *result)
 {
     char home[4096];
-    if (!makeTempDir(home, sizeof home)) {
-        fprintf(stderr, "cannot create temporary directory: %s\n",
-                strerror(errno));
+    if (!testMakeTempDir(home, sizeof home)) {
+        fprintf(stderr, "cannot create a temporary directory\n");
         return false;
     }
-    /* The input file is outside HOME, so the program cannot see it there. */
+    /* The files are outside HOME, so the program cannot see them there. */
     char inputPath[4200];
+    char outputPath[4200];
     snprintf(inputPath, sizeof inputPath, "%s.input", home);
+    snprintf(outputPath, sizeof outputPath, "%s.output", home);
     if (!writeFile(inputPath, input ? input : "", input ? strlen(input) : 0)) {
-        removeTree(home);
+        testRemoveTree(home);
         return false;
     }
 
-    int pipeFds[2];
-    if (pipe(pipeFds) != 0) {
-        removeTree(home);
+    const char *argv[MAX_ARGS + 2];
+    size_t n = 0;
+    argv[n++] = program;
+    for (size_t i = 0; args[i] && n < MAX_ARGS; i++) {
+        argv[n++] = args[i];
+    }
+    argv[n] = NULL;
+    const HostVariable variables[] = {
+        {"HOME", home},
+        {"USERPROFILE", home},
+        {"LC_ALL", "C"},
+    };
+
+    SavedStreams saved;
+    if (!testRedirect(inputPath, outputPath, &saved)) {
+        remove(inputPath);
+        testRemoveTree(home);
         return false;
     }
+    int status = hostRun((char *const *)argv, variables,
+                         sizeof variables / sizeof variables[0]);
+    testRestore(&saved);
 
-    fflush(stdout);
-    fflush(stderr);
-    pid_t pid = fork();
-    if (pid < 0) {
-        close(pipeFds[0]);
-        close(pipeFds[1]);
-        removeTree(home);
-        return false;
+    char *captured;
+    size_t length;
+    if (!readFile(outputPath, &captured, &length)) {
+        captured = xmalloc(1);
+        captured[0] = '\0';
     }
-    if (pid == 0) {
-        close(pipeFds[0]);
-        dup2(pipeFds[1], STDOUT_FILENO);
-        dup2(pipeFds[1], STDERR_FILENO);
-        close(pipeFds[1]);
-        int inputFd = open(input ? inputPath : "/dev/null", O_RDONLY);
-        if (inputFd >= 0) {
-            dup2(inputFd, STDIN_FILENO);
-            close(inputFd);
-        }
-        setenv("HOME", home, 1);
-        setenv("LC_ALL", "C", 1);
-
-        const char *argv[MAX_ARGS + 2];
-        size_t n = 0;
-        argv[n++] = program;
-        for (size_t i = 0; args[i] && n < MAX_ARGS; i++) {
-            argv[n++] = args[i];
-        }
-        argv[n] = NULL;
-        execv(program, (char *const *)argv);
-        fprintf(stderr, "cannot execute %s: %s\n", program, strerror(errno));
-        _exit(127);
-    }
-
-    close(pipeFds[1]);
-    StrBuf captured;
-    strBufInit(&captured);
-    char chunk[4096];
-    ssize_t count;
-    while ((count = read(pipeFds[0], chunk, sizeof chunk)) != 0) {
-        if (count < 0) {
-            if (errno == EINTR) {
-                continue;
-            }
-            break;
-        }
-        strBufAppend(&captured, chunk, (size_t)count);
-    }
-    close(pipeFds[0]);
-
-    int status;
-    waitpid(pid, &status, 0);
-    result->status = WIFEXITED(status) ? WEXITSTATUS(status) : -1;
-    result->output = replaceAll(captured.data, home, "$HOME");
+    result->status = status;
+    result->output = replaceAll(captured, home, "$HOME");
     result->length = strlen(result->output);
-    strBufFree(&captured);
-    removeTree(home);
-    unlink(inputPath);
+    free(captured);
+    remove(inputPath);
+    remove(outputPath);
+    testRemoveTree(home);
     return true;
 }
 
@@ -322,7 +278,7 @@ static void runFormatWriteTest(bool standalone)
     testCount++;
 
     char dir[4096];
-    if (!makeTempDir(dir, sizeof dir)) {
+    if (!testMakeTempDir(dir, sizeof dir)) {
         TEST_FAIL("fmt -w: cannot create temporary directory");
         return;
     }
@@ -330,7 +286,7 @@ static void runFormatWriteTest(bool standalone)
     snprintf(path, sizeof path, "%s/manifest.dotfile", dir);
     if (!writeFile(path, input, sizeof input - 1)) {
         TEST_FAIL("fmt -w: cannot write %s", path);
-        removeTree(dir);
+        testRemoveTree(dir);
         return;
     }
 
@@ -356,7 +312,7 @@ static void runFormatWriteTest(bool standalone)
         }
         free(result.output);
     }
-    removeTree(dir);
+    testRemoveTree(dir);
 }
 
 static void runCliCases(void)
@@ -416,9 +372,47 @@ static bool readHeader(const char *source, char *storage, size_t storageSize,
     return count > 0;
 }
 
-static int compareNames(const void *a, const void *b)
+/*
+ * Reads the optional "# requires:" header of a fixture, the command the
+ * fixture needs, into command. Returns false if there is none.
+ */
+static bool readRequirement(const char *source, char *command, size_t size)
 {
-    return strcmp(*(const char *const *)a, *(const char *const *)b);
+    const char *line = strstr(source, "# requires:");
+    if (!line) {
+        return false;
+    }
+    line += strlen("# requires:");
+    line += strspn(line, " \t");
+    size_t length = strcspn(line, " \t\r\n");
+    if (length >= size) {
+        length = size - 1;
+    }
+    memcpy(command, line, length);
+    command[length] = '\0';
+    return length > 0;
+}
+
+/*
+ * Whether a fixture runs on this system: true unless it has an "# os:"
+ * header that does not name the operating system of the host.
+ */
+static bool runsOnHost(const char *source)
+{
+    const char *line = strstr(source, "# os:");
+    if (!line) {
+        return true;
+    }
+    line += strlen("# os:");
+    size_t length = strcspn(line, "\n");
+    const char *host = operatingSystemName(hostOperatingSystem());
+    size_t hostLength = strlen(host);
+    for (const char *p = line; p + hostLength <= line + length; p++) {
+        if (strncmp(p, host, hostLength) == 0) {
+            return true;
+        }
+    }
+    return false;
 }
 
 static void runFixture(const char *name, bool update)
@@ -446,8 +440,21 @@ static void runFixture(const char *name, bool update)
         free(source);
         return;
     }
-    if (geteuid() == 0 && strstr(name, "brew")) {
+    if (hostIsRoot() && strstr(name, "brew")) {
         /* Homebrew does not run as root, so its plan is an error. */
+        free(source);
+        return;
+    }
+    if (!runsOnHost(source)) {
+        printf("skipped fixture %s: not for %s\n", name,
+               operatingSystemName(hostOperatingSystem()));
+        free(source);
+        return;
+    }
+    char command[64];
+    if (readRequirement(source, command, sizeof command) &&
+        !hostCommandExists(command)) {
+        printf("skipped fixture %s: %s is not installed\n", name, command);
         free(source);
         return;
     }
@@ -481,7 +488,7 @@ static void runFixture(const char *name, bool update)
         if (!readFile(outPath, &expected, &expectedLength)) {
             TEST_FAIL("fixture %s: cannot read %s", name, outPath);
         } else {
-            if (geteuid() == 0) {
+            if (hostIsRoot()) {
                 /* Expected outputs are recorded without root privileges. */
                 char *unprivileged = replaceAll(expected, ": sudo ", ": ");
                 free(expected);
@@ -504,31 +511,15 @@ static void runFixture(const char *name, bool update)
 
 static void runFixtures(bool update)
 {
-    DIR *dir = opendir(CASES_DIR);
-    if (!dir) {
-        TEST_FAIL("cannot open %s: %s", CASES_DIR, strerror(errno));
+    size_t count;
+    char **names = testListFiles(CASES_DIR, FIXTURE_SUFFIX, &count);
+    if (!names) {
+        TEST_FAIL("cannot read %s", CASES_DIR);
         return;
     }
-
-    char **names = NULL;
-    size_t count = 0;
-    struct dirent *entry;
-    while ((entry = readdir(dir)) != NULL) {
-        size_t length = strlen(entry->d_name);
-        size_t suffix = strlen(FIXTURE_SUFFIX);
-        if (length > suffix &&
-            strcmp(entry->d_name + length - suffix, FIXTURE_SUFFIX) == 0) {
-            names = xrealloc(names, (count + 1) * sizeof *names);
-            names[count] = xmalloc(length - suffix + 1);
-            memcpy(names[count], entry->d_name, length - suffix);
-            names[count][length - suffix] = '\0';
-            count++;
-        }
-    }
-    closedir(dir);
-
-    qsort(names, count, sizeof *names, compareNames);
     for (size_t i = 0; i < count; i++) {
+        /* The name of a fixture is its file name without the suffix. */
+        names[i][strlen(names[i]) - strlen(FIXTURE_SUFFIX)] = '\0';
         runFixture(names[i], update);
         free(names[i]);
     }
@@ -542,7 +533,7 @@ int main(int argc, char **argv)
     static const char *const programs[] = {DOTTR_BINARY, FORMAT_BINARY,
                                            LSP_BINARY};
     for (size_t i = 0; i < sizeof programs / sizeof programs[0]; i++) {
-        if (access(programs[i], X_OK) != 0) {
+        if (!hostCommandExists(programs[i])) {
             fprintf(stderr,
                     "%s not found; build the programs first (see AGENTS.md) "
                     "and run the tests from the repository root\n",

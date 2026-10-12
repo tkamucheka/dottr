@@ -1,0 +1,26 @@
+# args: apply
+# status: 1
+# requires: pwsh
+pkg a do
+  local GREETING = "hello"
+  apply do
+    shell do
+      ```pwsh
+      Write-Output "pwsh: $env:GREETING"
+      Write-Output "error action: $ErrorActionPreference"
+      Write-Output "native commands: $PSNativeCommandUseErrorActionPreference"
+      Write-Output "line: $((Get-PSCallStack)[0].ScriptLineNumber)"
+      ```
+    end
+  end
+end
+pkg b do
+  apply do
+    shell do
+      ```pwsh
+      Write-Output "before"
+      exit 3
+      ```
+    end
+  end
+end

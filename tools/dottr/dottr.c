@@ -7,6 +7,7 @@
 #include "dottr/diag.h"
 #include "dottr/eval.h"
 #include "dottr/format.h"
+#include "dottr/host.h"
 #include "dottr/lexer.h"
 #include "dottr/lsp.h"
 #include "dottr/package.h"
@@ -67,6 +68,7 @@ static int usageError(const char *format, const char *argument)
 
 int main(int argc, char **argv)
 {
+    hostInitialize();
     if (argc < 2) {
         printUsage(stderr);
         return EXIT_USAGE;

@@ -3,14 +3,14 @@
   -> create directory NESTED: $HOME/root/a/b/c
   -> check directory NESTED: true
   -> apply_if NESTED: fact is true, evaluating first branch
-  -> shell (sh), line 10
+  -> shell (sh), line 11
 created $HOME/root/a/b/c
 ==> unit config
   -> check file CONF: false
   -> apply_unless CONF: fact is false, evaluating body
-  -> shell (bash), line 23
+  -> shell (bash), line 24
   -> check file CONF: true
-  -> shell (sh), line 35
+  -> shell (sh), line 36
 server:
   port: 8080
 end

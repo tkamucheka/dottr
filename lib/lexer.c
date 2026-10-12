@@ -283,6 +283,14 @@ static bool parseInfoString(Lexer *lx, size_t start, size_t end,
         *dialect = SHELL_ZSH;
         return true;
     }
+    if (length == 4 && memcmp(info, "pwsh", 4) == 0) {
+        *dialect = SHELL_PWSH;
+        return true;
+    }
+    if (length == 10 && memcmp(info, "powershell", 10) == 0) {
+        *dialect = SHELL_POWERSHELL;
+        return true;
+    }
 
     int column = columnAt(lx, start);
     if (info[0] == '`') {
@@ -293,7 +301,8 @@ static bool parseInfoString(Lexer *lx, size_t start, size_t end,
                   "the info string must immediately follow the fence");
     } else {
         diagError(lx->diag, lx->line, column,
-                  "unknown info string '%.*s'; expected sh, bash, or zsh",
+                  "unknown info string '%.*s'; expected sh, bash, zsh, "
+                  "pwsh, or powershell",
                   (int)length, info);
     }
     return false;
@@ -596,13 +605,21 @@ const char *tokenKindName(TokenKind kind)
     return "token";
 }
 
-const char *shellDialectInterpreter(ShellDialect dialect)
+const char *shellDialectInterpreter(ShellDialect dialect, bool windows)
 {
     switch (dialect) {
-    case SHELL_DEFAULT: return "sh";
+    case SHELL_DEFAULT: return windows ? "powershell" : "sh";
     case SHELL_SH: return "sh";
     case SHELL_BASH: return "bash";
     case SHELL_ZSH: return "zsh";
+    case SHELL_PWSH: return "pwsh";
+    case SHELL_POWERSHELL: return "powershell";
     }
     return "sh";
+}
+
+bool shellDialectIsPowerShell(ShellDialect dialect, bool windows)
+{
+    return dialect == SHELL_PWSH || dialect == SHELL_POWERSHELL ||
+           (dialect == SHELL_DEFAULT && windows);
 }

@@ -55,6 +55,33 @@ static void expectError(PackageManager manager, bool root,
     }
 }
 
+static void testQueries(void)
+{
+    const char *argv[PACKAGE_COMMAND_MAX];
+    char command[512];
+
+    testCount++;
+    if (!packageQueryCommand(PACKAGE_MANAGER_WINGET, "Git.Git", argv)) {
+        TEST_FAIL("package: winget must query installed packages");
+    } else if (strcmp(joinCommand(argv, command, sizeof command),
+                      "winget list --exact --accept-source-agreements "
+                      "--id Git.Git") != 0) {
+        TEST_FAIL("package: unexpected winget query '%s'", command);
+    }
+
+    static const PackageManager idempotent[] = {
+        PACKAGE_MANAGER_PACMAN, PACKAGE_MANAGER_APT, PACKAGE_MANAGER_DNF,
+        PACKAGE_MANAGER_BREW, PACKAGE_MANAGER_NONE,
+    };
+    for (size_t i = 0; i < sizeof idempotent / sizeof idempotent[0]; i++) {
+        testCount++;
+        if (packageQueryCommand(idempotent[i], "git", argv)) {
+            TEST_FAIL("package: %s needs no query",
+                      packageManagerName(idempotent[i]));
+        }
+    }
+}
+
 static void testNames(void)
 {
     static const PackageManager all[] = {
@@ -117,6 +144,7 @@ void runPackageTests(void)
 {
     testNames();
     testSystems();
+    testQueries();
 
     expectCommand(PACKAGE_MANAGER_PACMAN, false,
                   "sudo pacman -S --needed --noconfirm git");

@@ -1,5 +1,3 @@
-#define _POSIX_C_SOURCE 200809L
-
 /*
  * Language server tests. Each test runs lspRun on a scripted session through
  * in-memory streams and checks the messages it writes.
@@ -13,6 +11,7 @@
 #include "dottr/json.h"
 #include "dottr/lsp.h"
 #include "dottr/util.h"
+#include "platform.h"
 #include "test.h"
 
 #define URI "file:///work/packages.dotfile"
@@ -115,13 +114,12 @@ static void sendShutdown(Session *session)
 /* Runs the server on the session input and parses its output. */
 static void run(Session *session)
 {
-    FILE *in = fmemopen(session->input.data, session->input.length, "r");
-    char *output = NULL;
-    size_t outputLength = 0;
-    FILE *out = open_memstream(&output, &outputLength);
+    FILE *in = testInputStream(session->input.data, session->input.length);
+    FILE *out = testOutputStream();
     session->status = lspRun(in, out);
     fclose(in);
-    fclose(out);
+    size_t outputLength;
+    char *output = testCloseOutput(out, &outputLength);
 
     const char *cursor = output;
     const char *end = output + outputLength;
@@ -521,7 +519,12 @@ static void testHover(void)
     const char *savedHome = getenv("HOME");
     char *home = savedHome ? strcpy(xmalloc(strlen(savedHome) + 1), savedHome)
                            : NULL;
-    setenv("HOME", "/home/test", 1);
+    const char *savedProfile = getenv("USERPROFILE");
+    char *profile = savedProfile ? strcpy(xmalloc(strlen(savedProfile) + 1),
+                                          savedProfile)
+                                 : NULL;
+    testSetVariable("HOME", "/home/test");
+    testSetVariable("USERPROFILE", "/home/test");
 
     Session s;
     sessionInit(&s);
@@ -555,12 +558,10 @@ static void testHover(void)
     expectNull("hover nothing", response(&s, 7), "result");
     sessionFree(&s);
 
-    if (home) {
-        setenv("HOME", home, 1);
-        free(home);
-    } else {
-        unsetenv("HOME");
-    }
+    testSetVariable("HOME", home);
+    testSetVariable("USERPROFILE", profile);
+    free(home);
+    free(profile);
 }
 
 static void testSymbols(void)

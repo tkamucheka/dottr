@@ -1,5 +1,6 @@
 # args: apply
 # status: 1
+# os: linux, macos
 pkg broken do
   apply do
     shell do

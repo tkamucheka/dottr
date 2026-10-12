@@ -1,8 +1,12 @@
+/* Host layer for POSIX systems: Linux and macOS. */
+#ifndef _WIN32
+
 #define _POSIX_C_SOURCE 200809L
 
 #include "dottr/host.h"
 
 #include <errno.h>
+#include <fcntl.h>
 #include <pwd.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -13,6 +17,10 @@
 #include <unistd.h>
 
 #include "dottr/util.h"
+
+void hostInitialize(void)
+{
+}
 
 const char *hostHomeDirectory(void)
 {
@@ -142,8 +150,12 @@ bool hostIsRoot(void)
     return geteuid() == 0;
 }
 
-int hostRun(char *const argv[], const HostVariable *variables,
-            size_t variableCount)
+/*
+ * Runs argv as hostRun does; if silent, the child's standard output and
+ * standard error are discarded.
+ */
+static int run(char *const argv[], const HostVariable *variables,
+               size_t variableCount, bool silent)
 {
     fflush(stdout);
     fflush(stderr);
@@ -155,6 +167,14 @@ int hostRun(char *const argv[], const HostVariable *variables,
         return -1;
     }
     if (pid == 0) {
+        if (silent) {
+            int null = open("/dev/null", O_WRONLY);
+            if (null >= 0) {
+                dup2(null, STDOUT_FILENO);
+                dup2(null, STDERR_FILENO);
+                close(null);
+            }
+        }
         for (size_t i = 0; i < variableCount; i++) {
             if (setenv(variables[i].name, variables[i].value, 1) != 0) {
                 fprintf(stderr, "dottr: error: cannot set %s: %s\n",
@@ -184,3 +204,79 @@ int hostRun(char *const argv[], const HostVariable *variables,
     }
     return -1;
 }
+
+int hostRun(char *const argv[], const HostVariable *variables,
+            size_t variableCount)
+{
+    return run(argv, variables, variableCount, false);
+}
+
+int hostRunSilently(char *const argv[])
+{
+    return run(argv, NULL, 0, true);
+}
+
+bool hostWriteTemporary(const char *name, const char *contents, size_t length,
+                        char *path, size_t pathSize, char *message,
+                        size_t messageSize)
+{
+    const char *base = getenv("TMPDIR");
+    if (!base || !*base) {
+        base = "/tmp";
+    }
+    char directory[4096];
+    int written = snprintf(directory, sizeof directory, "%s/dottr-XXXXXX",
+                           base);
+    if (written < 0 || (size_t)written >= sizeof directory) {
+        snprintf(message, messageSize, "the temporary directory %s is too "
+                                       "long", base);
+        return false;
+    }
+    if (!mkdtemp(directory)) {
+        snprintf(message, messageSize, "cannot create a directory in %s: %s",
+                 base, strerror(errno));
+        return false;
+    }
+    written = snprintf(path, pathSize, "%s/%s", directory, name);
+    if (written < 0 || (size_t)written >= pathSize) {
+        rmdir(directory);
+        snprintf(message, messageSize, "the temporary directory %s is too "
+                                       "long", base);
+        return false;
+    }
+
+    FILE *file = fopen(path, "wb");
+    if (!file) {
+        snprintf(message, messageSize, "cannot create %s: %s", path,
+                 strerror(errno));
+        rmdir(directory);
+        return false;
+    }
+    bool ok = fwrite(contents, 1, length, file) == length;
+    int error = errno;
+    if (fclose(file) != 0 && ok) {
+        ok = false;
+        error = errno;
+    }
+    if (!ok) {
+        snprintf(message, messageSize, "cannot write %s: %s", path,
+                 strerror(error));
+        hostRemoveTemporary(path);
+    }
+    return ok;
+}
+
+void hostRemoveTemporary(const char *path)
+{
+    remove(path);
+    const char *slash = strrchr(path, '/');
+    if (slash) {
+        char *directory = xmalloc((size_t)(slash - path) + 1);
+        memcpy(directory, path, (size_t)(slash - path));
+        directory[slash - path] = '\0';
+        rmdir(directory);
+        free(directory);
+    }
+}
+
+#endif

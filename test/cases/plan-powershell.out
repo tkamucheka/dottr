@@ -1,0 +1,9 @@
+unit a
+  local DIR = "$HOME/a"
+  apply
+    shell (sh)
+      mkdir -p "$DIR"
+    shell (pwsh)
+      New-Item -ItemType Directory -Force $env:DIR
+    shell (powershell)
+      New-Item -ItemType Directory -Force $env:DIR

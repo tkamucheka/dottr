@@ -161,6 +161,23 @@ bool packageInstallCommand(PackageManager manager, const char *package,
     return true;
 }
 
+bool packageQueryCommand(PackageManager manager, const char *package,
+                         const char **argv)
+{
+    if (manager != PACKAGE_MANAGER_WINGET) {
+        return false;
+    }
+    size_t n = 0;
+    argv[n++] = "winget";
+    argv[n++] = "list";
+    argv[n++] = "--exact";
+    argv[n++] = "--accept-source-agreements";
+    argv[n++] = "--id";
+    argv[n++] = package;
+    argv[n] = NULL;
+    return true;
+}
+
 SystemSet packageManagerSystems(PackageManager manager)
 {
     switch (manager) {

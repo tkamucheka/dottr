@@ -9,6 +9,7 @@
 #include <string.h>
 
 #include "dottr/format.h"
+#include "dottr/host.h"
 
 #define EXIT_USAGE 2
 
@@ -38,6 +39,7 @@ static int usageError(const char *message, const char *argument)
 
 int main(int argc, char **argv)
 {
+    hostInitialize();
     bool write = false;
     bool checkOnly = false;
     bool optionsEnded = false;

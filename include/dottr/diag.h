@@ -3,7 +3,11 @@
 
 #include <stdio.h>
 
-#if defined(__GNUC__)
+#if defined(__MINGW_PRINTF_FORMAT)
+/* MinGW: the printf of its C runtime, or its own with __USE_MINGW_ANSI_STDIO. */
+#define DOTTR_PRINTF(formatIndex, firstArg) \
+    __attribute__((format(__MINGW_PRINTF_FORMAT, formatIndex, firstArg)))
+#elif defined(__GNUC__)
 #define DOTTR_PRINTF(formatIndex, firstArg) \
     __attribute__((format(printf, formatIndex, firstArg)))
 #else

@@ -35,12 +35,17 @@ typedef enum {
     TOK_ON,
 } TokenKind;
 
-/* Shell named by the info string of a raw block. */
+/*
+ * Shell named by the info string of a raw block. SHELL_DEFAULT, a block
+ * without an info string, runs with sh, or with powershell on Windows.
+ */
 typedef enum {
     SHELL_DEFAULT,
     SHELL_SH,
     SHELL_BASH,
     SHELL_ZSH,
+    SHELL_PWSH,
+    SHELL_POWERSHELL,
 } ShellDialect;
 
 typedef enum {
@@ -107,7 +112,13 @@ bool lexSource(Arena *arena, const char *source, size_t length,
 /* Human-readable token kind, for example "`pkg`" or "identifier". */
 const char *tokenKindName(TokenKind kind);
 
-/* Interpreter name for a dialect: "sh", "bash", or "zsh". */
-const char *shellDialectInterpreter(ShellDialect dialect);
+/*
+ * Interpreter name for a dialect: "sh", "bash", "zsh", "pwsh", or
+ * "powershell". The interpreter of SHELL_DEFAULT is "sh" unless windows.
+ */
+const char *shellDialectInterpreter(ShellDialect dialect, bool windows);
+
+/* Whether a dialect runs with PowerShell. */
+bool shellDialectIsPowerShell(ShellDialect dialect, bool windows);
 
 #endif

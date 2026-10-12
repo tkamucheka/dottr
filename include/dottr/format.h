@@ -8,9 +8,8 @@
 #include "dottr/util.h"
 
 /*
- * Formats a manifest and appends the
- * result to out. Returns false after reporting the first lexical or syntax
- * error to diag; out is then unchanged.
+ * Formats a manifest and appends the result to out. Returns false after
+ * reporting the first lexical or syntax error to diag; out is then unchanged.
  */
 bool formatManifest(const char *source, size_t length, StrBuf *out,
                     Diag *diag);

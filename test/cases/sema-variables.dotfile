@@ -10,7 +10,8 @@ pkg a do
   local F = "@{undefined}"
   local PATH = "/usr/bin"
   local HOME = "/tmp"
-  local Path = "allowed"
+  local Path = "/usr/local/bin"
+  local userprofile = "/home/user"
 end
 pkg b do
   local X = "@{B}"

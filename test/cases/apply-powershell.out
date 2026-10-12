@@ -1,0 +1,12 @@
+==> unit a
+  -> shell (pwsh), line 7
+pwsh: hello
+error action: Stop
+native commands: True
+line: 4
+==> unit b
+  -> shell (pwsh), line 19
+before
+test/cases/apply-powershell.dotfile:19:5: error: shell block exited with status 3
+==> unit b failed
+summary: 1 satisfied, 1 failed, 0 skipped

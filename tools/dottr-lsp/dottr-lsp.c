@@ -6,6 +6,7 @@
 #include <stdio.h>
 #include <string.h>
 
+#include "dottr/host.h"
 #include "dottr/lsp.h"
 
 #define EXIT_USAGE 2
@@ -20,6 +21,7 @@ static void printUsage(FILE *stream)
 
 int main(int argc, char **argv)
 {
+    hostInitialize();
     if (argc > 1) {
         if (strcmp(argv[1], "-h") == 0 || strcmp(argv[1], "--help") == 0) {
             printUsage(stdout);

@@ -2,7 +2,10 @@
 
 ## Layout
 * Public headers: `include/dottr/` (include as `"dottr/<name>.h"`)
-* Library code: `lib/`
+* Library code: `lib/`. Operating system services are behind
+  `include/dottr/host.h`, implemented by `lib/host_posix.c` (Linux, macOS)
+  and `lib/host_windows.c` (Windows); no other library code is specific to
+  an operating system.
 * Programs: `tools/<program>/<program>.c`, one directory each: `dottr` (the
   frontend), `dottr-format` (formatter), `dottr-lsp` (language server), and
   `dottr-fuzzer` (libFuzzer harness)
@@ -22,6 +25,14 @@
 * Run tests (from the repository root, after building the programs): `build/dottr-test`
 * Regenerate expected fixture output: `build/dottr-test --update` (review the
   resulting diff of `test/cases/*.out` before committing)
+* Fixture headers: `# args:` and `# status:` are required;
+  `# os: linux, macos` limits a fixture to the named operating systems, and
+  `# requires: COMMAND` skips it when `COMMAND` is not installed
+* Cross-compile for Windows (requires mingw-w64-gcc): `for p in dottr dottr-format dottr-lsp; do x86_64-w64-mingw32-gcc -std=c11 -Wall -Wextra -D__USE_MINGW_ANSI_STDIO=1 -Iinclude lib/*.c tools/$p/$p.c -o build/$p.exe; done`,
+  and the tests with `lib/*.c test/*.c -o build/dottr-test.exe`; run them
+  from the repository root with `wine build/dottr-test.exe`. Wine runs the
+  test suite but not PowerShell, so PowerShell blocks are verified on
+  Windows itself.
 * Build fuzzer (requires clang): `clang -std=c11 -Wall -Wextra -g -O1 -fsanitize=fuzzer,address,undefined -Iinclude lib/*.c tools/dottr-fuzzer/fuzz_manifest.c -o build/dottr-fuzzer`
 * Run fuzzer: `mkdir -p build/fuzz-corpus && build/dottr-fuzzer -dict=tools/dottr-fuzzer/dottr.dict -artifact_prefix=build/ -max_total_time=300 build/fuzz-corpus test/cases`
   (new inputs go to `build/fuzz-corpus`, crash reproducers to `build/`;

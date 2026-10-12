@@ -145,10 +145,10 @@ sequence is an error.
 Within a string literal, `@{NAME}` is replaced with the value of the variable
 `NAME`, and `@{dottr.env.home}` with the home directory of the user: `$HOME`,
 or the home directory recorded in the password database if `HOME` is unset or
-empty. Other uses of `@` are ordinary text. A `@{` that does not begin a
-well-formed reference, or a reference to a variable that is not bound at that
-point, is an error. The language has no escape for a literal `@{` in a
-string.
+empty, and `%USERPROFILE%` on Windows. Other uses of `@` are ordinary text. A
+`@{` that does not begin a well-formed reference, or a reference to a variable
+that is not bound at that point, is an error. The language has no escape for a
+literal `@{` in a string.
 
 Interpolation applies to string literals only. Shell scripts are passed to the
 shell unchanged and read variables from the environment (Section 6.1).
@@ -165,7 +165,12 @@ else  shell  command  file  directory  on
 A variable cannot be named after one of the environment variables that
 control how a shell starts or finds commands, since every variable is passed
 to shell scripts in the environment: `BASHOPTS`, `BASH_ENV`, `CDPATH`, `ENV`,
-`HOME`, `IFS`, `OLDPWD`, `PATH`, `PWD`, `SHELL`, `SHELLOPTS`, and `ZDOTDIR`.
+`HOME`, `IFS`, `OLDPWD`, `PATH`, `PWD`, `SHELL`, `SHELLOPTS`, and `ZDOTDIR`
+for POSIX shells, and `APPDATA`, `ComSpec`, `LOCALAPPDATA`, `PATHEXT`,
+`PSModulePath`, `SystemRoot`, `TEMP`, `TMP`, and `USERPROFILE` for
+PowerShell and Windows. Since Windows does not distinguish the case of
+environment variable names, neither does this rule: `Path` and `path` are
+reserved as well.
 
 ## 5. Checks
 
@@ -245,8 +250,9 @@ stops the unit; the unit then fails.
 ### 6.1 Shell Blocks
 
 The script of a `shell` block is enclosed in fences, lines consisting of three
-backticks. The opening fence may name the shell that runs the script, `sh`,
-`bash`, or `zsh`; the default is `sh`:
+backticks. The opening fence may name the shell that runs the script: `sh`,
+`bash`, `zsh`, `pwsh` (PowerShell 7), or `powershell` (Windows PowerShell).
+Without a name, the script runs with `sh`, or with `powershell` on Windows:
 
 ````
 shell do
@@ -277,12 +283,11 @@ shell do
 end
 ````
 
-Each block runs as a separate process, `INTERPRETER -e -c SCRIPT`, with the
-interpreter found in `PATH`, so the script
-stops at the first command that fails, and a non-zero exit status fails the
-unit. The script runs in the working directory of dottr, with its standard
-input, output, and error. Its environment is the environment of dottr,
-together with every variable of the unit bound before the block:
+Each block runs as a separate process, with the interpreter found in `PATH`,
+and a non-zero exit status fails the unit. The script runs in the working
+directory of dottr, with its standard input, output, and error. Its
+environment is the environment of dottr, together with every variable of the
+unit bound before the block:
 
 ```
 local TPM_DIR = "@{dottr.env.home}/.config/tmux/plugins/tpm"
@@ -292,6 +297,31 @@ local TPM_DIR = "@{dottr.env.home}/.config/tmux/plugins/tpm"
 
 No state is carried from one block to the next: a `cd` or `export` in one
 block does not affect another.
+
+`sh`, `bash`, and `zsh` run the script as `INTERPRETER -e -c SCRIPT`, so the
+script stops at the first command that fails.
+
+`pwsh` and `powershell` run the script from a temporary file, as
+`INTERPRETER -NoLogo -NoProfile -ExecutionPolicy Bypass -File FILE`, and
+remove the file afterwards. The script runs with `$ErrorActionPreference`
+set to `'Stop'`, so the first error stops it. PowerShell does not treat a
+failing native program as an error unless told to: `pwsh` scripts run with
+`$PSNativeCommandUseErrorActionPreference` set to `$true`, which stops them
+at a failing native program in PowerShell 7.4 and later. Windows PowerShell
+has no such setting; a script checks `$LASTEXITCODE` after a native program
+whose failure matters, and ends with `exit $LASTEXITCODE` if its last
+command is a native program. Variables are read as `$env:NAME`:
+
+````
+local NVIM_DIR = "@{dottr.env.home}/AppData/Local/nvim"
+...
+    shell do
+      ```powershell
+      git clone https://github.com/user/nvim-config $env:NVIM_DIR
+      if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+      ```
+    end
+````
 
 ## 7. Systems
 

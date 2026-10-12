@@ -60,7 +60,7 @@ With [gardener.nvim](https://github.com/tkamucheka/gardener.nvim) and
   dependencies = { "nvim-treesitter/nvim-treesitter" },
   lazy = false,
   opts = {
-    ensure_installed = { "bash", "zsh" },
+    ensure_installed = { "bash", "zsh", "powershell" },
     custom_parsers = {
       dottr = {
         install_info = {
@@ -79,8 +79,8 @@ With [gardener.nvim](https://github.com/tkamucheka/gardener.nvim) and
 
 gardener detects files ending in `.dotfile` as the filetype `dottr`,
 installs the parser when a manifest is first opened, and starts
-highlighting, folds, and indentation. The `bash` and `zsh` parsers highlight
-the scripts of `shell` blocks. Installation without gardener and the text
+highlighting, folds, and indentation. The `bash`, `zsh`, and `powershell`
+parsers highlight the scripts of `shell` blocks. Installation without gardener and the text
 objects of the grammar are described in the
 [tree-sitter-dottr README](https://github.com/tkamucheka/tree-sitter-dottr#readme).
 
@@ -129,7 +129,8 @@ configure only one of the two.
 
 * `:checkhealth vim.lsp` lists the attached `dottr` client.
 * `:InspectTree` shows the syntax tree of the buffer.
-* `:Inspect` on a word of a shell script lists `bash` or `zsh` captures,
+* `:Inspect` on a word of a shell script lists `bash`, `zsh`, or
+  `powershell` captures,
   which confirms that shell scripts are highlighted.
 
 ## 3. Other Editors

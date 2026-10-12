@@ -1,6 +1,6 @@
 ==> unit a
-  -> shell (sh), line 5
-  -> shell (sh), line 12
+  -> shell (sh), line 6
+  -> shell (sh), line 13
 working directory not carried over
 variable: unset
 summary: 1 satisfied, 0 failed, 0 skipped

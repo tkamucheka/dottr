@@ -29,6 +29,8 @@ fence="```"
 fence_sh="```sh"
 fence_bash="```bash"
 fence_zsh="```zsh"
+fence_pwsh="```pwsh"
+fence_powershell="```powershell"
 fence_long="````"
 
 ref_open="@{"
