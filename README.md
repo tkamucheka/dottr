@@ -6,12 +6,13 @@ unit installs a package, or runs shell scripts gated on checks of the host,
 and may depend on other units. `dottr apply` brings the machine to the
 declared state, and is run again whenever the manifest changes.
 
-````
+````dottr
 pkg git
+pkg tmux
 
-pkg tmux do
-  needs git
-  pkg tmux
+pkg tpm do
+  needs git, tmux
+
   local TPM_DIR = "@{dottr.env.home}/.config/tmux/plugins/tpm"
   check directory TPM_DIR
   apply_unless TPM_DIR do

@@ -82,7 +82,7 @@ static void checkFile(const char *path)
 
 static void testFixtures(void)
 {
-    checkFile("packages.dotfile");
+    checkFile("manifest.dotfile");
 
     DIR *dir = opendir("test/cases");
     if (!dir) {

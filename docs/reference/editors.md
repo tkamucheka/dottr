@@ -49,21 +49,7 @@ Requirements:
   branch, with its requirements (`curl`, `tar`, the tree-sitter CLI, and a C
   compiler)
 
-### 2.1 Filetype
-
-Map the extension to the filetype `dottr`:
-
-```lua
-vim.filetype.add({ extension = { dotfile = "dottr" } })
-```
-
-and set the comment string in `ftplugin/dottr.lua`:
-
-```lua
-vim.bo.commentstring = "# %s"
-```
-
-### 2.2 Tree-sitter Grammar
+### 2.1 Tree-sitter Grammar
 
 With [gardener.nvim](https://github.com/tkamucheka/gardener.nvim) and
 [lazy.nvim](https://github.com/folke/lazy.nvim):
@@ -82,6 +68,7 @@ With [gardener.nvim](https://github.com/tkamucheka/gardener.nvim) and
           queries = "queries",
         },
         filetypes = { "dottr" },
+        extensions = { "dotfile" },
       },
     },
     manage_folds = true,
@@ -90,11 +77,20 @@ With [gardener.nvim](https://github.com/tkamucheka/gardener.nvim) and
 }
 ```
 
-gardener installs the parser when a manifest is first opened and starts
+gardener detects files ending in `.dotfile` as the filetype `dottr`,
+installs the parser when a manifest is first opened, and starts
 highlighting, folds, and indentation. The `bash` and `zsh` parsers highlight
 the scripts of `shell` blocks. Installation without gardener and the text
 objects of the grammar are described in the
 [tree-sitter-dottr README](https://github.com/tkamucheka/tree-sitter-dottr#readme).
+
+### 2.2 Comment String
+
+Set the comment string in `ftplugin/dottr.lua`:
+
+```lua
+vim.bo.commentstring = "# %s"
+```
 
 ### 2.3 Language Server
 
