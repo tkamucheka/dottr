@@ -253,6 +253,12 @@ static bool runProgram(const char *program, const char *const *args,
         captured[0] = '\0';
     }
     result->status = status;
+#ifdef _WIN32
+    /* Programs such as PowerShell end lines with CR LF on Windows. */
+    char *lines = replaceAll(captured, "\r\n", "\n");
+    free(captured);
+    captured = lines;
+#endif
     result->output = replaceAll(captured, home, "$HOME");
     result->length = strlen(result->output);
     free(captured);

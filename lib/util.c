@@ -7,11 +7,22 @@
 
 #define ARENA_BLOCK_SIZE ((size_t)64 * 1024)
 
+/*
+ * A type with the strictest alignment of the basic types, as max_align_t,
+ * which MSVC provides only in C++.
+ */
+typedef union {
+    long double floating;
+    long long integer;
+    void *object;
+    void (*function)(void);
+} MaxAlign;
+
 struct ArenaBlock {
     ArenaBlock *next;
     size_t size;
     size_t used;
-    max_align_t data[];
+    MaxAlign data[];
 };
 
 static void fatalOutOfMemory(void)
@@ -56,7 +67,7 @@ void arenaFree(Arena *arena)
 
 void *arenaAlloc(Arena *arena, size_t size)
 {
-    const size_t align = _Alignof(max_align_t);
+    const size_t align = _Alignof(MaxAlign);
     size = (size + align - 1) / align * align;
     if (size == 0) {
         size = align;

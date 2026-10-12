@@ -2,6 +2,8 @@
 #ifndef _WIN32
 
 #define _POSIX_C_SOURCE 200809L
+/* macOS declares mkdtemp only with its own extensions. */
+#define _DARWIN_C_SOURCE
 
 #include "dottr/host.h"
 

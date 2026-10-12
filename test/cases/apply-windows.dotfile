@@ -1,0 +1,33 @@
+# args: apply
+# status: 1
+# os: windows
+pkg a do
+  local NAME = "world"
+  local GREETING = "hello @{NAME}"
+  local CMD = "cmd"
+  local DIR = "@{dottr.env.home}/created/nested"
+  check command CMD
+  check directory DIR
+  create directory DIR
+  check directory DIR
+  apply_if DIR do
+    shell do
+      ```
+      Write-Output "GREETING=$env:GREETING"
+      Write-Output "error action: $ErrorActionPreference"
+      Write-Output "directory exists: $(Test-Path -PathType Container $env:DIR)"
+      Write-Output "not interpolated: @{NAME}"
+      ```
+    end
+  end
+end
+pkg b do
+  apply do
+    shell do
+      ```powershell
+      Write-Output "before"
+      exit 4
+      ```
+    end
+  end
+end

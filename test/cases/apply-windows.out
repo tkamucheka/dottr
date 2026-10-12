@@ -1,0 +1,17 @@
+==> unit a
+  -> check command CMD: true
+  -> check directory DIR: false
+  -> create directory DIR: $HOME/created/nested
+  -> check directory DIR: true
+  -> apply_if DIR: fact is true, evaluating first branch
+  -> shell (powershell), line 14
+GREETING=hello world
+error action: Stop
+directory exists: True
+not interpolated: @{NAME}
+==> unit b
+  -> shell (powershell), line 26
+before
+test/cases/apply-windows.dotfile:26:5: error: shell block exited with status 4
+==> unit b failed
+summary: 1 satisfied, 1 failed, 0 skipped

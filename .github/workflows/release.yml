@@ -1,0 +1,121 @@
+# Builds the release archives when a version tag is pushed and publishes them,
+# with their SHA256SUMS, as a GitHub release. The archive names carry no
+# version, so that releases/latest/download/NAME names the latest archive.
+name: Release
+
+on:
+  push:
+    tags: ['v*']
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  linux:
+    name: Build (linux-${{ matrix.arch }})
+    strategy:
+      matrix:
+        include:
+          - arch: x86_64
+            runner: ubuntu-latest
+          - arch: aarch64
+            runner: ubuntu-24.04-arm
+    runs-on: ${{ matrix.runner }}
+    steps:
+      - uses: actions/checkout@v7
+      # Built with musl and linked statically in Alpine, the programs run on
+      # any Linux distribution. JavaScript actions do not run in Alpine on
+      # Arm runners, so the build runs with docker rather than as a
+      # container job.
+      - name: Build
+        run: |
+          docker run --rm -v "$PWD:/src" -w /src -e NAME=dottr-linux-${{ matrix.arch }} \
+            alpine:3.22 sh -euc '
+              apk add --no-cache build-base
+              mkdir -p "dist/$NAME/bin"
+              for p in dottr dottr-format dottr-lsp; do
+                cc -std=c11 -Wall -Wextra -O2 -static -Iinclude lib/*.c tools/$p/$p.c -o "dist/$NAME/bin/$p"
+                strip "dist/$NAME/bin/$p"
+                "dist/$NAME/bin/$p" --help >/dev/null
+              done
+              cp LICENSE README.md "dist/$NAME/"
+              tar -czf "dist/$NAME.tar.gz" -C dist "$NAME"
+              chown -R "$(stat -c %u:%g .)" dist
+            '
+      - uses: actions/upload-artifact@v7
+        with:
+          name: linux-${{ matrix.arch }}
+          path: dist/*.tar.gz
+
+  macos:
+    name: Build (macos-universal)
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v7
+      - name: Build
+        run: |
+          name=dottr-macos-universal
+          mkdir -p "dist/$name/bin"
+          for p in dottr dottr-format dottr-lsp; do
+            cc -std=c11 -Wall -Wextra -O2 -arch x86_64 -arch arm64 -mmacosx-version-min=11.0 \
+              -Iinclude lib/*.c tools/$p/$p.c -o "dist/$name/bin/$p"
+            "dist/$name/bin/$p" --help >/dev/null
+          done
+          cp LICENSE README.md "dist/$name/"
+          tar -czf "dist/$name.tar.gz" -C dist "$name"
+      - uses: actions/upload-artifact@v7
+        with:
+          name: macos-universal
+          path: dist/*.tar.gz
+
+  windows:
+    name: Build (windows-x86_64)
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: ilammy/msvc-dev-cmd@v1
+      - name: Build
+        shell: pwsh
+        run: |
+          $name = 'dottr-windows-x86_64'
+          New-Item -ItemType Directory -Force build\obj, "dist\$name\bin" | Out-Null
+          rc /nologo /fo build\dottr.res tools\windows\dottr.rc
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          $flags = '/nologo', '/std:c11', '/W3', '/O2', '/MT', '/Iinclude',
+                   '/D_CRT_SECURE_NO_WARNINGS', '/D_CRT_NONSTDC_NO_DEPRECATE',
+                   '/Fo:build\obj\'
+          foreach ($p in 'dottr', 'dottr-format', 'dottr-lsp') {
+            cl @flags lib\*.c "tools\$p\$p.c" build\dottr.res "/Fe:dist\$name\bin\$p.exe"
+            if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+            & "dist\$name\bin\$p.exe" --help | Out-Null
+            if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          }
+          Copy-Item LICENSE, README.md "dist\$name"
+          Compress-Archive -Path "dist\$name" -DestinationPath "dist\$name.zip"
+      - uses: actions/upload-artifact@v7
+        with:
+          name: windows-x86_64
+          path: dist/*.zip
+
+  publish:
+    name: Publish
+    needs: [linux, macos, windows]
+    if: startsWith(github.ref, 'refs/tags/v')
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@v8
+        with:
+          path: dist
+          merge-multiple: true
+      - name: Checksums
+        working-directory: dist
+        run: sha256sum dottr-* > SHA256SUMS && cat SHA256SUMS
+      - name: Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create "$GITHUB_REF_NAME" --repo "$GITHUB_REPOSITORY" \
+            --title "dottr $GITHUB_REF_NAME" --generate-notes dist/*
