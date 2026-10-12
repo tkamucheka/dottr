@@ -32,19 +32,27 @@ end
   environment.
 * A formatter, a language server, and editor support for VS Code and Neovim.
 
-dottr runs on Linux and macOS and installs packages with the system package
-manager: pacman, apt, or dnf on Linux, and Homebrew on macOS.
+dottr runs on Linux, macOS, and Windows and installs packages with the
+system package manager: pacman, apt, or dnf on Linux, Homebrew on macOS, and
+winget on Windows. One manifest can describe several systems.
 
 ## Installation
+
+On Linux and macOS:
 
 ```
 curl -fsSL https://raw.githubusercontent.com/tkamucheka/dottr/main/install.sh | sh
 ```
 
-The script builds dottr from source, which requires a C compiler and git, and
-installs it into `~/.local/opt/dottr`, linked from `~/.local/bin`. Options,
-upgrading, and removal are described in
-[Installation](docs/reference/installation.md).
+On Windows, in PowerShell:
+
+```
+irm https://raw.githubusercontent.com/tkamucheka/dottr/main/install.ps1 | iex
+```
+
+The scripts install the release archive for the platform for the current
+user, or build dottr from source where there is none. Options, upgrading,
+and removal are described in [Installation](docs/reference/installation.md).
 
 ## Usage
 

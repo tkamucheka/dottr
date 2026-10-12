@@ -15,8 +15,14 @@
   `utils/tree-sitter-dottr/` is the tree-sitter grammar and queries, and
   `utils/vscode-dottr/` the VS Code extension; editor setup in
   `docs/reference/editors.md`
+* Windows resources (the UTF-8 application manifest): `tools/windows/`
 * Build output: `build/` (gitignored)
-* Install script: `install.sh` (documented in `docs/reference/installation.md`)
+* Install scripts: `install.sh` (Linux, macOS) and `install.ps1` (Windows),
+  documented in `docs/reference/installation.md`
+* Continuous integration: `.github/workflows/ci.yml` (tests on Linux, macOS,
+  and Windows with MinGW and MSVC; a package installation with each package
+  manager) and `.github/workflows/release.yml` (release archives, built and
+  published when a tag `v*` is pushed)
 
 ## Build Commands
 * Create build directory: `mkdir -p build`
@@ -28,11 +34,12 @@
 * Fixture headers: `# args:` and `# status:` are required;
   `# os: linux, macos` limits a fixture to the named operating systems, and
   `# requires: COMMAND` skips it when `COMMAND` is not installed
-* Cross-compile for Windows (requires mingw-w64-gcc): `for p in dottr dottr-format dottr-lsp; do x86_64-w64-mingw32-gcc -std=c11 -Wall -Wextra -D__USE_MINGW_ANSI_STDIO=1 -Iinclude lib/*.c tools/$p/$p.c -o build/$p.exe; done`,
+* Cross-compile for Windows (requires mingw-w64-gcc): `x86_64-w64-mingw32-windres tools/windows/dottr.rc -O coff -o build/dottr-resources.o`, then `for p in dottr dottr-format dottr-lsp; do x86_64-w64-mingw32-gcc -std=c11 -Wall -Wextra -D__USE_MINGW_ANSI_STDIO=1 -Iinclude lib/*.c tools/$p/$p.c build/dottr-resources.o -o build/$p.exe; done`,
   and the tests with `lib/*.c test/*.c -o build/dottr-test.exe`; run them
-  from the repository root with `wine build/dottr-test.exe`. Wine runs the
-  test suite but not PowerShell, so PowerShell blocks are verified on
-  Windows itself.
+  from the repository root with `wine build/dottr-test.exe`. Wine's
+  `powershell` is a stub that runs nothing, so the fixture `apply-windows`
+  fails under Wine; PowerShell blocks are verified by the Windows jobs of
+  continuous integration.
 * Build fuzzer (requires clang): `clang -std=c11 -Wall -Wextra -g -O1 -fsanitize=fuzzer,address,undefined -Iinclude lib/*.c tools/dottr-fuzzer/fuzz_manifest.c -o build/dottr-fuzzer`
 * Run fuzzer: `mkdir -p build/fuzz-corpus && build/dottr-fuzzer -dict=tools/dottr-fuzzer/dottr.dict -artifact_prefix=build/ -max_total_time=300 build/fuzz-corpus test/cases`
   (new inputs go to `build/fuzz-corpus`, crash reproducers to `build/`;

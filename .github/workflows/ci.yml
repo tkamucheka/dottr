@@ -1,0 +1,210 @@
+# Builds dottr and runs the test suite on Linux, macOS, and Windows, and
+# installs a package with each supported package manager.
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  posix:
+    name: Test (${{ matrix.os }})
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, ubuntu-24.04-arm, macos-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v7
+      - name: Install zsh
+        if: runner.os == 'Linux'
+        run: sudo apt-get update && sudo apt-get install -y zsh
+      - name: Build
+        run: |
+          mkdir -p build
+          for p in dottr dottr-format dottr-lsp; do
+            cc -std=c11 -Wall -Wextra -Werror -Iinclude lib/*.c tools/$p/$p.c -o build/$p
+          done
+          cc -std=c11 -Wall -Wextra -Werror -Iinclude lib/*.c test/*.c -o build/dottr-test
+      - name: Test
+        run: build/dottr-test
+      - name: Install script
+        run: |
+          sh install.sh --source . --prefix "$RUNNER_TEMP/dottr" --bin-dir "$RUNNER_TEMP/bin"
+          "$RUNNER_TEMP/bin/dottr" check -f manifest.dotfile
+
+  sanitizers:
+    name: Test with sanitizers
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - name: Install zsh
+        run: sudo apt-get update && sudo apt-get install -y zsh
+      - name: Build
+        run: |
+          mkdir -p build
+          flags="-std=c11 -Wall -Wextra -Werror -g -fsanitize=address,undefined -fno-sanitize-recover=all -Iinclude"
+          for p in dottr dottr-format dottr-lsp; do
+            clang $flags lib/*.c tools/$p/$p.c -o build/$p
+          done
+          clang $flags lib/*.c test/*.c -o build/dottr-test
+      - name: Test
+        run: build/dottr-test
+
+  mingw:
+    name: Test (windows, MinGW)
+    runs-on: windows-latest
+    defaults:
+      run:
+        shell: msys2 {0}
+    steps:
+      - uses: actions/checkout@v7
+      - uses: msys2/setup-msys2@v2
+        with:
+          msystem: UCRT64
+          path-type: inherit
+          install: mingw-w64-ucrt-x86_64-gcc
+      - name: Build
+        run: |
+          mkdir -p build
+          flags="-std=c11 -Wall -Wextra -Werror -D__USE_MINGW_ANSI_STDIO=1 -Iinclude"
+          windres tools/windows/dottr.rc -O coff -o build/dottr-resources.o
+          for p in dottr dottr-format dottr-lsp; do
+            gcc $flags lib/*.c tools/$p/$p.c build/dottr-resources.o -o build/$p.exe
+          done
+          gcc $flags lib/*.c test/*.c -o build/dottr-test.exe
+      - name: Test
+        shell: pwsh
+        run: |
+          build\dottr-test.exe
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+
+  msvc:
+    name: Test (windows, MSVC)
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: ilammy/msvc-dev-cmd@v1
+      - name: Build
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Force build\obj | Out-Null
+          rc /nologo /fo build\dottr.res tools\windows\dottr.rc
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          $flags = '/nologo', '/std:c11', '/W3', '/O2', '/Iinclude',
+                   '/D_CRT_SECURE_NO_WARNINGS', '/D_CRT_NONSTDC_NO_DEPRECATE',
+                   '/Fo:build\obj\'
+          foreach ($p in 'dottr', 'dottr-format', 'dottr-lsp') {
+            cl @flags lib\*.c "tools\$p\$p.c" build\dottr.res "/Fe:build\$p.exe"
+            if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          }
+          cl @flags lib\*.c test\*.c /Fe:build\dottr-test.exe
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+      - name: Test
+        shell: pwsh
+        run: |
+          build\dottr-test.exe
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+      - name: Install script
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Force dist\dottr-windows-x86_64\bin | Out-Null
+          Copy-Item build\dottr.exe, build\dottr-format.exe, build\dottr-lsp.exe dist\dottr-windows-x86_64\bin
+          Compress-Archive -Path dist\dottr-windows-x86_64 -DestinationPath dist\dottr-windows-x86_64.zip
+          $env:DOTTR_ARCHIVE = "$PWD\dist\dottr-windows-x86_64.zip"
+          $env:DOTTR_PREFIX = "$env:RUNNER_TEMP\dottr"
+          Get-Content -Raw install.ps1 | Invoke-Expression
+          dottr check -f manifest.dotfile
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          [Environment]::GetEnvironmentVariable('Path', 'User')
+
+  # Installs a package with each package manager, as the user of dottr would,
+  # and applies the manifest a second time, which must find it installed.
+  package-managers:
+    name: Packages (${{ matrix.manager }})
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - manager: pacman
+            container: archlinux:latest
+            setup: pacman -Syu --noconfirm gcc
+          - manager: apt
+            container: ubuntu:24.04
+            setup: apt-get update && apt-get install -y gcc
+          - manager: dnf
+            container: fedora:latest
+            setup: dnf install -y gcc
+    runs-on: ubuntu-latest
+    container: ${{ matrix.container }}
+    env:
+      DEBIAN_FRONTEND: noninteractive
+    steps:
+      - uses: actions/checkout@v7
+      - name: Install a compiler
+        run: ${{ matrix.setup }}
+      - name: Build
+        run: |
+          mkdir -p build
+          cc -std=c11 -Wall -Wextra -Iinclude lib/*.c tools/dottr/dottr.c -o build/dottr
+      - name: Apply
+        run: |
+          printf 'pkg tree\n' > packages.dotfile
+          build/dottr plan -f packages.dotfile
+          build/dottr apply -f packages.dotfile
+          tree --version
+          build/dottr apply -f packages.dotfile
+
+  homebrew:
+    name: Packages (brew)
+    runs-on: macos-latest
+    env:
+      HOMEBREW_NO_AUTO_UPDATE: 1
+    steps:
+      - uses: actions/checkout@v7
+      - name: Build
+        run: |
+          mkdir -p build
+          cc -std=c11 -Wall -Wextra -Iinclude lib/*.c tools/dottr/dottr.c -o build/dottr
+      - name: Apply
+        run: |
+          printf 'pkg tree\n' > packages.dotfile
+          build/dottr plan -f packages.dotfile
+          build/dottr apply -f packages.dotfile
+          tree --version
+          build/dottr apply -f packages.dotfile
+
+  winget:
+    name: Packages (winget)
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: ilammy/msvc-dev-cmd@v1
+      - name: Check for winget
+        shell: pwsh
+        run: winget --version
+      - name: Build
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Force build\obj | Out-Null
+          cl /nologo /std:c11 /O2 /Iinclude /D_CRT_SECURE_NO_WARNINGS /D_CRT_NONSTDC_NO_DEPRECATE /Fo:build\obj\ lib\*.c tools\dottr\dottr.c /Fe:build\dottr.exe
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+      - name: Apply
+        shell: pwsh
+        run: |
+          Set-Content -Path packages.dotfile -Value 'pkg "jqlang.jq"'
+          build\dottr.exe plan -f packages.dotfile
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          build\dottr.exe apply -f packages.dotfile
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          $second = build\dottr.exe apply -f packages.dotfile | Out-String
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          Write-Output $second
+          if ($second -notmatch 'package jqlang\.jq is installed') {
+            Write-Error 'the second apply did not find the package installed'
+          }
