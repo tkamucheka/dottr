@@ -1,0 +1,37 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 300" role="img" aria-label="A dottr manifest applied to Linux, macOS, and Windows">
+  <defs>
+    <pattern id="dots" width="24" height="24" patternUnits="userSpaceOnUse">
+      <circle cx="12" cy="12" r="1.3" fill="#2c2c2c"/>
+    </pattern>
+    <marker id="arrow" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse">
+      <path d="M0 0L10 5L0 10z" fill="#268bd2"/>
+    </marker>
+    <marker id="arrow-dim" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M0 0L10 5L0 10z" fill="#6f6f6f"/>
+    </marker>
+  </defs>
+  <rect width="1200" height="300" fill="#202020"/>
+  <rect width="1200" height="300" fill="url(#dots)"/>
+  <rect x="70" y="40" width="420" height="220" rx="10" fill="#272727" stroke="#3a3a3a" stroke-width="1.5"/>
+  <text x="95" y="82" font-family="'Fira Code', 'SFMono-Regular', Menlo, Consolas, monospace" font-size="17" xml:space="preserve"><tspan fill="#268bd2">pkg </tspan><tspan fill="#f2f2f2">git</tspan></text>
+  <text x="95" y="109" font-family="'Fira Code', 'SFMono-Regular', Menlo, Consolas, monospace" font-size="17" xml:space="preserve"><tspan fill="#268bd2">pkg </tspan><tspan fill="#f2f2f2">tmux</tspan></text>
+  <text x="95" y="136" font-family="'Fira Code', 'SFMono-Regular', Menlo, Consolas, monospace" font-size="17" xml:space="preserve"><tspan fill="#268bd2">pkg </tspan><tspan fill="#f2f2f2">fd </tspan><tspan fill="#268bd2">do</tspan></text>
+  <text x="95" y="163" font-family="'Fira Code', 'SFMono-Regular', Menlo, Consolas, monospace" font-size="17" xml:space="preserve"><tspan fill="#268bd2">  on </tspan><tspan fill="#cb7d3c">apt </tspan><tspan fill="#268bd2">do </tspan><tspan fill="#268bd2">pkg </tspan><tspan fill="#2aa198">&quot;fd-find&quot;</tspan><tspan fill="#268bd2"> end</tspan></text>
+  <text x="95" y="190" font-family="'Fira Code', 'SFMono-Regular', Menlo, Consolas, monospace" font-size="17" xml:space="preserve"><tspan fill="#268bd2">  on </tspan><tspan fill="#cb7d3c">windows </tspan><tspan fill="#268bd2">do</tspan></text>
+  <text x="95" y="217" font-family="'Fira Code', 'SFMono-Regular', Menlo, Consolas, monospace" font-size="17" xml:space="preserve"><tspan fill="#268bd2">    pkg </tspan><tspan fill="#2aa198">&quot;sharkdp.fd&quot;</tspan></text>
+  <text x="95" y="244" font-family="'Fira Code', 'SFMono-Regular', Menlo, Consolas, monospace" font-size="17" xml:space="preserve"><tspan fill="#268bd2">  end</tspan></text>
+  <line x1="520" y1="150" x2="680" y2="150" stroke="#268bd2" stroke-width="2.5" marker-end="url(#arrow)"/>
+  <text x="600" y="136" fill="#f2f2f2" font-family="'Fira Code', 'SFMono-Regular', Menlo, Consolas, monospace" font-size="17" font-weight="normal" text-anchor="middle">dottr apply</text>
+  <rect x="720" y="52" width="400" height="56" rx="10" fill="#272727" stroke="#3a3a3a" stroke-width="1.5"/>
+  <path d="M745 80 l5 5 l9 -11" fill="none" stroke="#268bd2" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
+  <text x="776" y="87" fill="#f2f2f2" font-family="'Fira Code', 'SFMono-Regular', Menlo, Consolas, monospace" font-size="19" font-weight="normal" text-anchor="start">linux</text>
+  <text x="1100" y="87" fill="#6f6f6f" font-family="'Fira Code', 'SFMono-Regular', Menlo, Consolas, monospace" font-size="16" font-weight="normal" text-anchor="end">pacman  apt  dnf</text>
+  <rect x="720" y="124" width="400" height="56" rx="10" fill="#272727" stroke="#3a3a3a" stroke-width="1.5"/>
+  <path d="M745 152 l5 5 l9 -11" fill="none" stroke="#268bd2" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
+  <text x="776" y="159" fill="#f2f2f2" font-family="'Fira Code', 'SFMono-Regular', Menlo, Consolas, monospace" font-size="19" font-weight="normal" text-anchor="start">macos</text>
+  <text x="1100" y="159" fill="#6f6f6f" font-family="'Fira Code', 'SFMono-Regular', Menlo, Consolas, monospace" font-size="16" font-weight="normal" text-anchor="end">brew</text>
+  <rect x="720" y="196" width="400" height="56" rx="10" fill="#272727" stroke="#3a3a3a" stroke-width="1.5"/>
+  <path d="M745 224 l5 5 l9 -11" fill="none" stroke="#268bd2" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
+  <text x="776" y="231" fill="#f2f2f2" font-family="'Fira Code', 'SFMono-Regular', Menlo, Consolas, monospace" font-size="19" font-weight="normal" text-anchor="start">windows</text>
+  <text x="1100" y="231" fill="#6f6f6f" font-family="'Fira Code', 'SFMono-Regular', Menlo, Consolas, monospace" font-size="16" font-weight="normal" text-anchor="end">winget</text>
+</svg>

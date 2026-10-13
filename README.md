@@ -1,3 +1,5 @@
+![A dottr manifest applied to Linux, macOS, and Windows](.github/banner.svg)
+
 # dottr
 
 dottr sets up a machine from a manifest. The manifest declares the packages
