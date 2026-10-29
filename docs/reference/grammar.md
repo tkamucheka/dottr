@@ -53,7 +53,8 @@ token         = keyword | IDENT | STRING | "=" | "," ;
 word          = ( letter | "_" ) { letter | digit | "_" } ;
 keyword       = "pkg" | "do" | "end" | "local" | "needs" | "check"
               | "create" | "apply" | "apply_if" | "apply_unless" | "else"
-              | "shell" | "command" | "file" | "directory" | "on" ;
+              | "shell" | "command" | "file" | "directory" | "on"
+              | "link" ;
 IDENT         = word - keyword ;
 
 (* String literals *)
@@ -107,6 +108,7 @@ unit_stmt         = local_stmt
                   | child_pkg
                   | check_stmt
                   | create_stmt
+                  | link_stmt
                   | apply_stmt
                   | apply_if_stmt
                   | apply_unless_stmt
@@ -118,6 +120,8 @@ needs_stmt        = "needs" unit_name { "," unit_name } NEWLINE ;
 child_pkg         = "pkg" unit_name NEWLINE ;
 check_stmt        = "check" kind IDENT NEWLINE ;
 create_stmt       = "create" "directory" IDENT NEWLINE ;
+link_stmt         = "link" [ tree_modifier ] IDENT IDENT NEWLINE ;
+tree_modifier     = IDENT ; (* exactly the word tree *)
 
 apply_stmt        = "apply" "do" NEWLINE { action_stmt } "end" NEWLINE ;
 apply_if_stmt     = "apply_if" IDENT "do" NEWLINE { action_stmt }
@@ -159,6 +163,8 @@ Notes:
 * Block-form units cannot be nested. Only the bare form `pkg` may appear
   inside a unit body.
 * `create` accepts only the kind `directory`.
+* The contextual `tree` modifier is present only before two variable names.
+  It is not a keyword: `pkg tree` and `link tree TARGET` remain valid.
 
 ## 4. Constraints Not Expressed by the Grammar
 
@@ -188,7 +194,7 @@ system, which consists of the contents of the `on` blocks that apply on it
   (Section 3).
 * A variable is bound at most once in a unit, and is not named after a
   protected environment variable (Sections 4 and 4.3).
-* Every variable named by `check`, `create`, or a single-component
+* Every variable named by `check`, `create`, `link`, or a single-component
   `INTERP` is bound earlier in the unit, and every multi-component `INTERP`
   names a built-in value; the only built-in value is `dottr.env.home`
   (Section 4.2).

@@ -505,6 +505,22 @@ static bool parseStmt(Parser *p, const Unit *unit, Stmt *stmt)
         return expect(p, TOK_NEWLINE, "after package name");
     }
 
+    case TOK_SYMLINK:
+        advance(p);
+        stmt->kind = STMT_SYMLINK;
+        /* `tree` is contextual: ordinary packages and locals may use it. */
+        if (at(p, TOK_IDENT) && peek(p)->length == 4 &&
+            memcmp(peek(p)->text, "tree", 4) == 0 &&
+            p->pos + 2 < p->count && p->tokens[p->pos + 2].kind == TOK_IDENT) {
+            stmt->as.symlink.tree = true;
+            advance(p);
+        }
+        if (!parseVariable(p, &stmt->as.symlink.source, "after `link`") ||
+            !parseVariable(p, &stmt->as.symlink.target, "after source variable")) {
+            return false;
+        }
+        return expect(p, TOK_NEWLINE, "after target variable");
+
     case TOK_CHECK:
     case TOK_CREATE: {
         bool isCreate = token->kind == TOK_CREATE;

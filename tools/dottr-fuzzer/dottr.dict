@@ -24,6 +24,8 @@ kw_shell="shell"
 kw_command="command"
 kw_file="file"
 kw_directory="directory"
+kw_link="link"
+kw_tree="tree"
 
 fence="```"
 fence_sh="```sh"

@@ -213,6 +213,19 @@ static bool runProgram(const char *program, const char *const *args,
         fprintf(stderr, "cannot create a temporary directory\n");
         return false;
     }
+#ifndef _WIN32
+    /* /tmp and TMPDIR may have symlinked ancestors on macOS. */
+    char reason[512];
+    char *canonical = hostCanonicalPath(home, reason, sizeof reason);
+    if (!canonical || strlen(canonical) >= sizeof home) {
+        fprintf(stderr, "cannot canonicalize the temporary home directory\n");
+        free(canonical);
+        testRemoveTree(home);
+        return false;
+    }
+    memcpy(home, canonical, strlen(canonical) + 1);
+    free(canonical);
+#endif
     /* The files are outside HOME, so the program cannot see them there. */
     char inputPath[4200];
     char outputPath[4200];
@@ -259,6 +272,14 @@ static bool runProgram(const char *program, const char *const *args,
     free(captured);
     captured = lines;
 #endif
+    char message[512];
+    char *absoluteHome = hostAbsolutePath(home, message, sizeof message);
+    if (absoluteHome) {
+        char *normalized = replaceAll(captured, absoluteHome, "$HOME");
+        free(captured);
+        captured = normalized;
+        free(absoluteHome);
+    }
     result->output = replaceAll(captured, home, "$HOME");
     result->length = strlen(result->output);
     free(captured);
@@ -552,6 +573,7 @@ int main(int argc, char **argv)
     runFormatTests();
     runLspTests();
     runPackageTests();
+    runSymlinkTests();
     runCliCases();
     runFormatWriteTest(false);
     runFormatWriteTest(true);

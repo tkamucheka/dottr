@@ -553,6 +553,15 @@ static void buildIndex(Document *doc)
                 addName(doc, OCC_PACKAGE, &stmt->as.childPkg.package, unit,
                         NULL, stmt);
                 break;
+            case STMT_SYMLINK: {
+                const Name *names[] = {&stmt->as.symlink.source,
+                                       &stmt->as.symlink.target};
+                for (size_t j = 0; j < 2; j++) {
+                    addName(doc, OCC_VAR_REF, names[j], unit,
+                            findLocalOn(unit, names[j]->text, stmt->systems), stmt);
+                }
+                break;
+            }
             case STMT_CHECK:
             case STMT_CREATE:
                 addName(doc, OCC_VAR_REF, &stmt->as.predicate.variable, unit,
@@ -925,6 +934,13 @@ static const struct {
               "`apply_unless`."},
     {"create", "`create directory NAME` creates the directory named by a "
                "variable, with any missing parents."},
+    {"link", "`link SOURCE TARGET` creates a symbolic link at TARGET "
+                "to SOURCE. `link tree SOURCE TARGET` links files recursively "
+                "into real target directories. Operands name local variables. "
+                "Matching links are retained; conflicting entries are errors."},
+    {"tree", "In `link tree SOURCE TARGET`, recursively deploy the source "
+             "directory's files. Source directory links remain leaves; target "
+             "directory links are refused."},
     {"apply", "`apply do ... end` runs its shell blocks."},
     {"apply_if", "`apply_if NAME do ... [else ...] end` runs the first "
                  "branch if the fact recorded by `check ... NAME` is true, "
@@ -1198,7 +1214,12 @@ static const Token *keywordAt(const Document *doc, size_t offset)
     }
     for (size_t i = 0; i < doc->tokens.count; i++) {
         const Token *token = &doc->tokens.items[i];
-        if (token->kind < TOK_PKG) {
+        bool tree = token->kind == TOK_IDENT && token->length == 4 &&
+                    memcmp(token->text, "tree", 4) == 0 && i > 0 &&
+                    doc->tokens.items[i - 1].kind == TOK_SYMLINK &&
+                    i + 2 < doc->tokens.count &&
+                    doc->tokens.items[i + 2].kind == TOK_IDENT;
+        if (token->kind < TOK_PKG && !tree) {
             continue;
         }
         size_t start = offsetAt(doc, token->line, token->column);
@@ -1940,7 +1961,7 @@ static void addKeywords(ItemWriter *w, const Server *s, const Scan *scan)
     static const char *const file[] = {"pkg", "on", NULL};
     static const char *const topLevelOn[] = {"pkg", "on", "end", NULL};
     static const char *const unit[] = {
-        "local", "needs", "pkg", "check", "create", "apply",
+        "local", "needs", "pkg", "check", "create", "link", "apply",
         "apply_if", "apply_unless", "on", "end", NULL};
     static const char *const apply[] = {"shell", "on", "end", NULL};
     static const char *const applyIf[] = {"shell", "on", "else", "end", NULL};
@@ -2128,6 +2149,14 @@ static void handleCompletion(Server *s, const JsonValue *params, Reply *reply)
     } else if (count == 2 && (spanIs(context[0], "check") ||
                               spanIs(context[0], "create"))) {
         addVariables(&w, &scan.locals);
+    } else if (spanIs(context[0], "link")) {
+        bool tree = count > 1 && spanIs(context[1], "tree");
+        if (count == 1) {
+            addItem(&w, "tree", 4, COMPLETION_KEYWORD, "recursive deployment");
+        }
+        if (count < (tree ? 4 : 3)) {
+            addVariables(&w, &scan.locals);
+        }
     } else if (count == 1 && (spanIs(context[0], "apply_if") ||
                               spanIs(context[0], "apply_unless"))) {
         addVariables(&w, &scan.checked);

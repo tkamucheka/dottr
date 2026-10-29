@@ -43,6 +43,37 @@ bool hostIsDirectory(const char *path);
  */
 bool hostCreateDirectory(const char *path, char *message, size_t messageSize);
 
+typedef enum {
+    HOST_PATH_MISSING,
+    HOST_PATH_FILE,
+    HOST_PATH_DIRECTORY,
+    HOST_PATH_SYMLINK,
+    HOST_PATH_OTHER,
+} HostPathKind;
+
+/* Inspects the entry itself, without following a final symlink or junction. */
+bool hostPathKind(const char *path, HostPathKind *kind, char *message,
+                  size_t messageSize);
+
+/* Heap-allocated, normalized absolute path; does not resolve symlinks. */
+char *hostAbsolutePath(const char *path, char *message, size_t messageSize);
+/* Heap-allocated canonical path of an existing entry, following symlinks. */
+char *hostCanonicalPath(const char *path, char *message, size_t messageSize);
+bool hostPathsEqual(const char *left, const char *right);
+bool hostPathSeparator(char c);
+size_t hostPathRootLength(const char *path);
+
+/* Names only, sorted, heap allocated; free each name and the array. */
+bool hostDirectoryEntries(const char *path, char ***names, size_t *count,
+                          char *message, size_t messageSize);
+
+/* Whether the entry is a symbolic link to the given absolute source path. */
+bool hostSymlinkMatches(const char *source, const char *target, bool *matches,
+                        char *message, size_t messageSize);
+/* Creates a new link only. Never removes or replaces an existing entry. */
+bool hostCreateSymlink(const char *source, const char *target, char *message,
+                       size_t messageSize);
+
 /* Whether dottr runs as root. Always false on Windows. */
 bool hostIsRoot(void);
 

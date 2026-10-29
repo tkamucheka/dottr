@@ -1,0 +1,1 @@
+test/cases/syntax-symlink-action.dotfile:5:5: error: expected `shell` block or `end` in `apply` body, found `link`

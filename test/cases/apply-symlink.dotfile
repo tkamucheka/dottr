@@ -1,0 +1,42 @@
+# args: apply
+# status: 0
+# os: linux, macos
+pkg source do
+  local ROOT = "@{dottr.env.home}/source"
+  local NESTED = "@{ROOT}/nested"
+  create directory NESTED
+  apply do
+    shell do
+      ```
+      printf 'configuration\n' > "$ROOT/settings"
+      printf 'nested\n' > "$NESTED/settings"
+      ```
+    end
+  end
+end
+
+pkg config do
+  needs source
+  local SOURCE = "@{dottr.env.home}/source"
+  local FILE = "@{SOURCE}/settings"
+  local LINK = "@{dottr.env.home}/settings"
+  local DIRECTORY = "@{dottr.env.home}/directory-link"
+  local TARGET = "@{dottr.env.home}/config"
+  link FILE LINK
+  link SOURCE DIRECTORY
+  link tree SOURCE TARGET
+  link FILE LINK
+  link SOURCE DIRECTORY
+  link tree SOURCE TARGET
+  apply do
+    shell do
+      ```
+      test -L "$LINK"
+      test -L "$DIRECTORY"
+      test ! -L "$TARGET"
+      test -L "$TARGET/nested/settings"
+      cat "$LINK" "$TARGET/nested/settings"
+      ```
+    end
+  end
+end

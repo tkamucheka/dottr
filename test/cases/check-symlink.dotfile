@@ -1,0 +1,12 @@
+# args: check
+# status: 0
+pkg tree
+pkg config do
+  local SOURCE = "nonexistent-source"
+  local TARGET = "nonexistent-target"
+  local tree = "a-local-named-tree"
+  link SOURCE TARGET
+  link tree SOURCE TARGET
+  link tree TARGET
+  link SOURCE tree
+end

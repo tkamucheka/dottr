@@ -33,6 +33,7 @@ typedef enum {
     TOK_FILE,
     TOK_DIRECTORY,
     TOK_ON,
+    TOK_SYMLINK,
 } TokenKind;
 
 /*

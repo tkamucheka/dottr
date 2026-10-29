@@ -1,0 +1,7 @@
+unit config
+  local SOURCE = "$HOME/source"
+  local TARGET = "$HOME/config"
+  local LINK = "$HOME/config-link"
+  create directory TARGET: $HOME/config
+  link $HOME/config-link -> $HOME/source (source currently missing)
+  link tree $HOME/config -> $HOME/source (source currently missing)

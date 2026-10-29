@@ -155,6 +155,11 @@ static void testStatements(void)
                  TOK_NEWLINE, TOK_EOF);
     lexFree(&r);
 
+    lexText("link tree SOURCE TARGET\n", &r);
+    EXPECT_KINDS("symlink with contextual tree", &r, TOK_SYMLINK, TOK_IDENT,
+                 TOK_IDENT, TOK_IDENT, TOK_NEWLINE, TOK_EOF);
+    lexFree(&r);
+
     lexText("applyx _a1 Pkg", &r);
     EXPECT_KINDS("identifiers", &r, TOK_IDENT, TOK_IDENT, TOK_IDENT,
                  TOK_NEWLINE, TOK_EOF);

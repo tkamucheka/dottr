@@ -851,6 +851,66 @@ static void testOnBlocks(void)
     sessionFree(&s);
 }
 
+static void testSymlink(void)
+{
+    static const char text[] =
+        "pkg config do\n"
+        "  local SOURCE = \"source\"\n"
+        "  local TARGET = \"target\"\n"
+        "  link SOURCE TARGET\n"
+        "  link tree SOURCE TARGET\n"
+        "end\n";
+    Session s;
+    sessionInit(&s);
+    sendInitialize(&s, "[\"utf-8\"]");
+    sendOpen(&s, text);
+    sendAt(&s, 1, "textDocument/definition", 3, 12, NULL);
+    sendAt(&s, 2, "textDocument/definition", 4, 24, NULL);
+    sendAt(&s, 3, "textDocument/hover", 3, 4, NULL);
+    sendAt(&s, 4, "textDocument/references", 1, 9,
+           ",\"context\":{\"includeDeclaration\":false}");
+    sendAt(&s, 5, "textDocument/rename", 1, 9, ",\"newName\":\"REPO\"");
+    sendAt(&s, 6, "textDocument/hover", 4, 8, NULL);
+    run(&s);
+    expectCount("symlink diagnostics", lastDiagnostics(&s), "params.diagnostics", 0);
+    expectInt("symlink source definition", response(&s, 1), "result.range.start.line", 1);
+    expectInt("symlink target definition", response(&s, 2), "result.range.start.line", 2);
+    expectContains("symlink hover", response(&s, 3), "result.contents.value", "symbolic link");
+    expectContains("symlink tree hover", response(&s, 6), "result.contents.value", "recursively");
+    expectCount("symlink references", response(&s, 4), "result", 2);
+    const JsonValue *edits = jsonGet(at(response(&s, 5), "result.changes"), URI);
+    testCount++;
+    if (!edits || edits->kind != JSON_ARRAY || edits->count != 3) {
+        TEST_FAIL("lsp symlink rename: expected 3 edits");
+    }
+    sessionFree(&s);
+
+    static const char partial[] =
+        "pkg config do\n"
+        "  local SOURCE = \"source\"\n"
+        "  local TARGET = \"target\"\n"
+        "  link \n"
+        "  link tree \n"
+        "  link SOURCE \n"
+        "  link tree SOURCE \n"
+        "end\n";
+    sessionInit(&s);
+    sendInitialize(&s, "[\"utf-8\"]");
+    sendOpen(&s, partial);
+    sendAt(&s, 1, "textDocument/completion", 3, 7, NULL);
+    sendAt(&s, 2, "textDocument/completion", 4, 12, NULL);
+    sendAt(&s, 3, "textDocument/completion", 5, 14, NULL);
+    sendAt(&s, 4, "textDocument/completion", 6, 19, NULL);
+    run(&s);
+    const char *const source[] = {"SOURCE", "TARGET", "tree", NULL};
+    const char *const variables[] = {"SOURCE", "TARGET", NULL};
+    expectLabels("symlink source completion", at(response(&s, 1), "result"), source, NULL);
+    for (int i = 2; i <= 4; i++) {
+        expectLabels("symlink operand completion", at(response(&s, i), "result"), variables, NULL);
+    }
+    sessionFree(&s);
+}
+
 void runLspTests(void)
 {
     testLifecycle();
@@ -863,4 +923,5 @@ void runLspTests(void)
     testShellUses();
     testUtf16();
     testOnBlocks();
+    testSymlink();
 }

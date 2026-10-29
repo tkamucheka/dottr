@@ -1,0 +1,1 @@
+test/cases/syntax-symlink-target.dotfile:5:14: error: expected variable name after source variable, found end of line

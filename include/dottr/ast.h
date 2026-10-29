@@ -50,6 +50,7 @@ typedef enum {
     STMT_CHILD_PKG,
     STMT_CHECK,
     STMT_CREATE,
+    STMT_SYMLINK,
     STMT_APPLY,
     STMT_APPLY_IF,
     STMT_APPLY_UNLESS,
@@ -80,6 +81,11 @@ typedef struct {
             PredicateKind kind;
             Name variable;
         } predicate;
+        struct {
+            Name source;
+            Name target;
+            bool tree;
+        } symlink;
         /*
          * STMT_APPLY, STMT_APPLY_IF, and STMT_APPLY_UNLESS. For STMT_APPLY the
          * variable is unused; elseActions is used only by STMT_APPLY_IF.

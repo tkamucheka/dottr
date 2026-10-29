@@ -1,0 +1,14 @@
+# args: check
+# status: 0
+pkg config do
+  on pacman do
+    local SOURCE = "arch"
+    local TARGET = "@{dottr.env.home}/arch"
+    link tree SOURCE TARGET
+  end
+  on apt do
+    local SOURCE = "debian"
+    local TARGET = "@{dottr.env.home}/debian"
+    link SOURCE TARGET
+  end
+end

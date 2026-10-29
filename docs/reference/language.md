@@ -66,6 +66,8 @@ The statements of a block unit are:
 | `local NAME = "..."` | Binds a variable (Section 4). |
 | `check KIND NAME` | Records a fact about the host (Section 5). |
 | `create directory NAME` | Creates a directory (Section 5.2). |
+| `link SOURCE TARGET` | Creates a symbolic link (Section 5.3). |
+| `link tree SOURCE TARGET` | Links a directory's files recursively (Section 5.3). |
 | `apply do ... end` | Runs actions (Section 6). |
 | `apply_if NAME do ... [else ...] end` | Runs actions if a fact is true (Section 6). |
 | `apply_unless NAME do ... end` | Runs actions if a fact is false (Section 6). |
@@ -159,7 +161,7 @@ Keywords cannot be used as variable or unit identifiers:
 
 ```
 pkg  do  end  local  needs  check  create  apply  apply_if  apply_unless
-else  shell  command  file  directory  on
+else  shell  command  file  directory  on  link
 ```
 
 A variable cannot be named after one of the environment variables that
@@ -206,6 +208,85 @@ directories.
 including missing parent directories. An existing directory is left
 unchanged; an existing file of another type is an error. `create` records no
 fact.
+
+### 5.3 Symbolic Links
+
+`link SOURCE TARGET` creates a symbolic link at `TARGET` that refers to
+`SOURCE`. `link` always creates symbolic links, not hard links. Both operands
+name local variables bound earlier in the unit:
+
+```
+pkg editor_config do
+  local SOURCE = "@{dottr.env.home}/.dotfiles/.config/nvim"
+  local CONFIG = "@{dottr.env.home}/.config"
+  local TARGET = "@{CONFIG}/nvim"
+  create directory CONFIG
+  link SOURCE TARGET
+end
+```
+
+The source may be a file, directory, or symbolic link, including a dangling
+symbolic link. An absent source or special filesystem object is an error.
+A directory source is linked as a single directory symlink. The target's
+parent directories must already exist; use `create directory` when needed.
+No fact is recorded by `link`.
+
+An existing symbolic link whose normalized destination is the requested
+source is left unchanged. Existing files, directories, and links to other
+paths are conflicts. Dottr reports an error without replacing, adopting,
+backing up, or deleting them. Target ancestor directories must be real
+directories, not symbolic links or Windows junctions.
+
+`link tree SOURCE TARGET` instead merges the contents of a real source
+directory into a real target directory, creating missing directories and
+linking each source file:
+
+```
+pkg editor_files do
+  local SOURCE = "@{dottr.env.home}/.dotfiles/.config/nvim"
+  local TARGET = "@{dottr.env.home}/.config/nvim"
+  link tree SOURCE TARGET
+end
+```
+
+Source directory symlinks are linked as leaves; they are not traversed.
+Existing target directories are reused, and unrelated target files are
+retained. Empty source directories create real empty target directories.
+The source and target trees must not overlap. Entries are processed in
+lexical order, and dottr checks the whole tree for conflicts before the first
+write. Filesystem errors or concurrent changes during application can still
+leave earlier successful operations in place; deployment is not transactional.
+
+No files are excluded implicitly. Declare the source subtrees to deploy;
+linking an entire repository tree also includes its metadata. Removed source
+files do not cause old target links to be removed automatically.
+
+Paths are normalized to absolute paths relative to dottr's working directory,
+as shell actions are. `.` and `..` components are normalized lexically.
+Links store absolute source paths so their meaning does not depend on the
+target's parent directory. Moving the source repository requires applying
+an updated declaration after resolving the old links as conflicts. On systems
+with a symlinked temporary or home directory, use its real path for targets.
+
+`tree` is a contextual modifier when followed by two variable names; it is
+not reserved as a package or variable name. For example, `link tree TARGET`
+uses the variable `tree` as its source. Statements may appear in a unit or
+an `on` block within it, alongside `create directory`; they are not actions
+inside `apply`, `apply_if`, or `apply_unless`.
+
+`dottr check` validates operands without reading the filesystem. `plan`
+inspects existing trees and reports links and directories it would create
+without writing them. A missing source is reported as currently missing;
+it may be supplied by a preceding package or shell action during `apply`.
+Similarly, missing parents are allowed in a plan, since preceding
+`create directory` statements are not executed by planning. Application
+requires those sources and parents to exist when the statement is evaluated.
+
+On Windows, dottr uses native symbolic links for files and directories;
+junctions and copies are not substituted. Creating links requires Windows
+Developer Mode or symbolic-link privileges. Failure to obtain them is an
+error, with an instruction to enable Developer Mode or use an account with
+the required privileges.
 
 ## 6. Actions
 
@@ -424,7 +505,9 @@ Consequently:
 
 A manifest is meant to be applied repeatedly, each time bringing the host to
 the declared state. Package units are idempotent, since installing an
-installed package changes nothing. Block units are idempotent if their actions are: work that must
+installed package changes nothing. Symlink statements retain matching links
+and existing real directories in tree mode. Block units are idempotent if
+their actions are: work that must
 happen once, such as cloning a repository, is gated with `check` and
 `apply_if` or `apply_unless`, and work that is safe to repeat, such as
 updating a clone, runs in the other branch.

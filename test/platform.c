@@ -117,6 +117,16 @@ bool testMakeTempDir(char *buffer, size_t size)
 
 void testRemoveTree(const char *path)
 {
+    DWORD attributes = GetFileAttributesA(path);
+    if (attributes != INVALID_FILE_ATTRIBUTES &&
+        (attributes & FILE_ATTRIBUTE_REPARSE_POINT)) {
+        if (attributes & FILE_ATTRIBUTE_DIRECTORY) {
+            RemoveDirectoryA(path);
+        } else {
+            DeleteFileA(path);
+        }
+        return;
+    }
     char pattern[4200];
     snprintf(pattern, sizeof pattern, "%s\\*", path);
     WIN32_FIND_DATAA entry;

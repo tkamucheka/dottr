@@ -1,0 +1,5 @@
+# args: check
+# status: 2
+pkg config do
+  link "source" "target"
+end

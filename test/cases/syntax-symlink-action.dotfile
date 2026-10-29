@@ -1,0 +1,7 @@
+# args: check
+# status: 2
+pkg config do
+  apply do
+    link SOURCE TARGET
+  end
+end

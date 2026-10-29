@@ -1,0 +1,1 @@
+test/cases/syntax-symlink-literal.dotfile:4:8: error: expected variable name after `link`, found string

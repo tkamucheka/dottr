@@ -1,0 +1,20 @@
+==> unit source
+  -> create directory NESTED: $HOME/source/nested
+  -> shell (sh), line 9
+==> unit config
+  -> link $HOME/settings -> $HOME/source/settings (create)
+  -> link $HOME/directory-link -> $HOME/source (create)
+  -> directory $HOME/config (create)
+  -> directory $HOME/config/nested (create)
+  -> link $HOME/config/nested/settings -> $HOME/source/nested/settings (create)
+  -> link $HOME/config/settings -> $HOME/source/settings (create)
+  -> link $HOME/settings -> $HOME/source/settings (unchanged)
+  -> link $HOME/directory-link -> $HOME/source (unchanged)
+  -> directory $HOME/config (unchanged)
+  -> directory $HOME/config/nested (unchanged)
+  -> link $HOME/config/nested/settings -> $HOME/source/nested/settings (unchanged)
+  -> link $HOME/config/settings -> $HOME/source/settings (unchanged)
+  -> shell (sh), line 32
+configuration
+nested
+summary: 2 satisfied, 0 failed, 0 skipped

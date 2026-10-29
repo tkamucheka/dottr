@@ -6,6 +6,7 @@
 
 #include "dottr/host.h"
 #include "dottr/package.h"
+#include "dottr/symlink.h"
 #include "dottr/util.h"
 
 typedef enum {
@@ -419,6 +420,18 @@ static bool runStmt(Evaluator *ev, Scope *scope, const Stmt *stmt)
         printf("  -> create directory %s: %s\n", name, value);
         char message[512];
         if (!hostCreateDirectory(value, message, sizeof message)) {
+            diagError(ev->diag, stmt->line, stmt->column, "%s", message);
+            return false;
+        }
+        return true;
+    }
+
+    case STMT_SYMLINK: {
+        const char *source = lookupLocal(scope, stmt->as.symlink.source.text);
+        const char *target = lookupLocal(scope, stmt->as.symlink.target.text);
+        char message[512];
+        if (!deploySymlink(source, target, stmt->as.symlink.tree, plan,
+                           message, sizeof message)) {
             diagError(ev->diag, stmt->line, stmt->column, "%s", message);
             return false;
         }

@@ -205,6 +205,18 @@ static void analyzeUnitBody(Analyzer *an, const Unit *unit)
             break;
         }
 
+        case STMT_SYMLINK: {
+            const Name *names[] = {&stmt->as.symlink.source,
+                                   &stmt->as.symlink.target};
+            for (size_t j = 0; j < 2; j++) {
+                if (!nameSetHas(&locals, names[j]->text)) {
+                    reportUnbound(an, unit, names[j]->text, names[j]->line,
+                                  names[j]->column);
+                }
+            }
+            break;
+        }
+
         case STMT_CHECK:
         case STMT_CREATE: {
             const Name *variable = &stmt->as.predicate.variable;

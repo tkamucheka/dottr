@@ -49,6 +49,7 @@ static const struct {
     {"command", TOK_COMMAND},
     {"file", TOK_FILE},
     {"directory", TOK_DIRECTORY},
+    {"link", TOK_SYMLINK},
 };
 
 static const char malformedRefMessage[] =
@@ -601,6 +602,7 @@ const char *tokenKindName(TokenKind kind)
     case TOK_COMMAND: return "`command`";
     case TOK_FILE: return "`file`";
     case TOK_DIRECTORY: return "`directory`";
+    case TOK_SYMLINK: return "`link`";
     }
     return "token";
 }

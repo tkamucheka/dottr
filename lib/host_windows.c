@@ -3,6 +3,7 @@
 
 #define WIN32_LEAN_AND_MEAN
 #include <windows.h>
+#include <winioctl.h>
 
 #include "dottr/host.h"
 
@@ -320,6 +321,319 @@ bool hostCreateDirectory(const char *path, char *message, size_t messageSize)
 
     free(copy);
     return ok;
+}
+
+bool hostPathSeparator(char c)
+{
+    return isSeparator(c);
+}
+
+size_t hostPathRootLength(const char *path)
+{
+    return rootLength(path);
+}
+
+bool hostPathsEqual(const char *left, const char *right)
+{
+    wchar_t *a = toWide(left);
+    wchar_t *b = toWide(right);
+    bool same = a && b && CompareStringOrdinal(a, -1, b, -1, TRUE) == CSTR_EQUAL;
+    free(a);
+    free(b);
+    return same;
+}
+
+static bool pathError(const char *operation, const char *path, DWORD error,
+                       char *message, size_t messageSize)
+{
+    char reason[256];
+    describeError(error, reason, sizeof reason);
+    snprintf(message, messageSize, "cannot %s %s: %s", operation, path, reason);
+    return false;
+}
+
+bool hostPathKind(const char *path, HostPathKind *kind, char *message,
+                  size_t messageSize)
+{
+    wchar_t *wide = toWide(path);
+    if (!wide) {
+        snprintf(message, messageSize, "cannot inspect %s: invalid UTF-8", path);
+        return false;
+    }
+    HANDLE file = CreateFileW(wide, 0,
+                              FILE_SHARE_READ | FILE_SHARE_WRITE | FILE_SHARE_DELETE,
+                              NULL, OPEN_EXISTING,
+                              FILE_FLAG_OPEN_REPARSE_POINT | FILE_FLAG_BACKUP_SEMANTICS,
+                              NULL);
+    DWORD error = GetLastError();
+    free(wide);
+    if (file == INVALID_HANDLE_VALUE) {
+        if (error == ERROR_FILE_NOT_FOUND || error == ERROR_PATH_NOT_FOUND) {
+            *kind = HOST_PATH_MISSING;
+            return true;
+        }
+        return pathError("inspect", path, error, message, messageSize);
+    }
+    FILE_ATTRIBUTE_TAG_INFO info;
+    bool ok = GetFileInformationByHandleEx(file, FileAttributeTagInfo,
+                                          &info, sizeof info) != 0;
+    error = GetLastError();
+    CloseHandle(file);
+    if (!ok) {
+        return pathError("inspect", path, error, message, messageSize);
+    }
+    *kind = info.FileAttributes & FILE_ATTRIBUTE_REPARSE_POINT
+                ? (info.ReparseTag == IO_REPARSE_TAG_SYMLINK ? HOST_PATH_SYMLINK
+                                                            : HOST_PATH_OTHER)
+                : info.FileAttributes & FILE_ATTRIBUTE_DIRECTORY ? HOST_PATH_DIRECTORY
+                                                                 : HOST_PATH_FILE;
+    return true;
+}
+
+char *hostAbsolutePath(const char *path, char *message, size_t messageSize)
+{
+    if (!*path) {
+        snprintf(message, messageSize, "a symlink path must not be empty");
+        return NULL;
+    }
+    wchar_t *wide = toWide(path);
+    if (!wide) {
+        snprintf(message, messageSize, "cannot resolve %s: invalid UTF-8", path);
+        return NULL;
+    }
+    DWORD length = GetFullPathNameW(wide, 0, NULL, NULL);
+    wchar_t *buffer = xmalloc(((size_t)length + 1) * sizeof *buffer);
+    DWORD written = length ? GetFullPathNameW(wide, length + 1, buffer, NULL) : 0;
+    DWORD error = GetLastError();
+    free(wide);
+    char *result = written && written <= length ? fromWide(buffer) : NULL;
+    free(buffer);
+    if (!result) {
+        pathError("resolve", path, error, message, messageSize);
+        return NULL;
+    }
+    for (char *p = result; *p; p++) {
+        if (*p == '\\') {
+            *p = '/';
+        }
+    }
+    size_t size = strlen(result);
+    while (size > rootLength(result) && isSeparator(result[size - 1])) {
+        result[--size] = '\0';
+    }
+    return result;
+}
+
+char *hostCanonicalPath(const char *path, char *message, size_t messageSize)
+{
+    wchar_t *wide = toWide(path);
+    HANDLE file = wide ? CreateFileW(
+        wide, 0, FILE_SHARE_READ | FILE_SHARE_WRITE | FILE_SHARE_DELETE, NULL,
+        OPEN_EXISTING, FILE_FLAG_BACKUP_SEMANTICS, NULL) : INVALID_HANDLE_VALUE;
+    free(wide);
+    if (file == INVALID_HANDLE_VALUE) {
+        pathError("resolve", path, GetLastError(), message, messageSize);
+        return NULL;
+    }
+    DWORD length = GetFinalPathNameByHandleW(file, NULL, 0, FILE_NAME_NORMALIZED);
+    wchar_t *buffer = xmalloc(((size_t)length + 1) * sizeof *buffer);
+    DWORD written = length ? GetFinalPathNameByHandleW(
+        file, buffer, length + 1, FILE_NAME_NORMALIZED) : 0;
+    DWORD error = GetLastError();
+    CloseHandle(file);
+    char *result = NULL;
+    if (written && written <= length) {
+        /* GetFinalPathNameByHandle uses the extended DOS path prefix. */
+        if (wcsncmp(buffer, L"\\\\?\\UNC\\", 8) == 0) {
+            buffer[6] = L'\\';
+            result = fromWide(buffer + 6);
+        } else {
+            result = fromWide(wcsncmp(buffer, L"\\\\?\\", 4) == 0 ? buffer + 4 : buffer);
+        }
+    }
+    free(buffer);
+    if (!result) {
+        pathError("resolve", path, error, message, messageSize);
+        return NULL;
+    }
+    char *absolute = hostAbsolutePath(result, message, messageSize);
+    free(result);
+    return absolute;
+}
+
+static int compareNames(const void *left, const void *right)
+{
+    return strcmp(*(char *const *)left, *(char *const *)right);
+}
+
+bool hostDirectoryEntries(const char *path, char ***names, size_t *count,
+                          char *message, size_t messageSize)
+{
+    *names = NULL;
+    *count = 0;
+    StrBuf pattern;
+    strBufInit(&pattern);
+    strBufAppendStr(&pattern, path);
+    strBufAppendStr(&pattern, "/*");
+    wchar_t *wide = toWide(pattern.data);
+    strBufFree(&pattern);
+    WIN32_FIND_DATAW data;
+    HANDLE search = wide ? FindFirstFileW(wide, &data) : INVALID_HANDLE_VALUE;
+    DWORD error = GetLastError();
+    free(wide);
+    if (search == INVALID_HANDLE_VALUE) {
+        if (error == ERROR_FILE_NOT_FOUND && hostIsDirectory(path)) {
+            return true;
+        }
+        return pathError("read", path, error, message, messageSize);
+    }
+    bool ok = true;
+    do {
+        if (wcscmp(data.cFileName, L".") == 0 || wcscmp(data.cFileName, L"..") == 0) {
+            continue;
+        }
+        char *name = fromWide(data.cFileName);
+        if (!name) {
+            ok = false;
+            break;
+        }
+        *names = xrealloc(*names, (*count + 1) * sizeof **names);
+        (*names)[(*count)++] = name;
+    } while (FindNextFileW(search, &data));
+    error = GetLastError();
+    FindClose(search);
+    if (!ok || error != ERROR_NO_MORE_FILES) {
+        for (size_t i = 0; i < *count; i++) {
+            free((*names)[i]);
+        }
+        free(*names);
+        *names = NULL;
+        *count = 0;
+        return pathError("read", path, error, message, messageSize);
+    }
+    if (*count > 1) {
+        qsort(*names, *count, sizeof **names, compareNames);
+    }
+    return true;
+}
+
+bool hostSymlinkMatches(const char *source, const char *target, bool *matches,
+                        char *message, size_t messageSize)
+{
+    typedef struct {
+        DWORD tag;
+        WORD dataLength;
+        WORD reserved;
+        WORD substituteOffset;
+        WORD substituteLength;
+        WORD printOffset;
+        WORD printLength;
+        DWORD flags;
+        WCHAR path[1];
+    } SymlinkData;
+    union {
+        DWORD alignment;
+        BYTE bytes[MAXIMUM_REPARSE_DATA_BUFFER_SIZE];
+    } buffer;
+    *matches = false;
+    wchar_t *wide = toWide(target);
+    HANDLE file = wide ? CreateFileW(
+        wide, 0, FILE_SHARE_READ | FILE_SHARE_WRITE | FILE_SHARE_DELETE, NULL,
+        OPEN_EXISTING, FILE_FLAG_OPEN_REPARSE_POINT | FILE_FLAG_BACKUP_SEMANTICS,
+        NULL) : INVALID_HANDLE_VALUE;
+    free(wide);
+    if (file == INVALID_HANDLE_VALUE) {
+        return pathError("read symlink", target, GetLastError(), message, messageSize);
+    }
+    DWORD returned;
+    bool ok = DeviceIoControl(file, FSCTL_GET_REPARSE_POINT, NULL, 0,
+                               buffer.bytes, sizeof buffer.bytes, &returned, NULL) != 0;
+    DWORD error = GetLastError();
+    CloseHandle(file);
+    SymlinkData *data = (SymlinkData *)buffer.bytes;
+    if (!ok || returned < 20 || data->tag != IO_REPARSE_TAG_SYMLINK ||
+        (size_t)20 + data->substituteOffset + data->substituteLength > returned ||
+        data->substituteLength % sizeof(WCHAR) != 0) {
+        return pathError("read symlink", target, error, message, messageSize);
+    }
+    size_t characters = data->substituteLength / sizeof(WCHAR);
+    wchar_t *contents = xmalloc((characters + 1) * sizeof *contents);
+    memcpy(contents, (BYTE *)data->path + data->substituteOffset,
+           data->substituteLength);
+    contents[characters] = L'\0';
+    char *text;
+    if (wcsncmp(contents, L"\\??\\UNC\\", 8) == 0) {
+        contents[6] = L'\\';
+        text = fromWide(contents + 6);
+    } else {
+        text = fromWide(wcsncmp(contents, L"\\??\\", 4) == 0 ? contents + 4 : contents);
+    }
+    free(contents);
+    if (!text) {
+        snprintf(message, messageSize, "cannot decode symlink %s", target);
+        return false;
+    }
+    StrBuf path;
+    strBufInit(&path);
+    if (data->flags & 1) {
+        size_t length = strlen(target);
+        while (length > 0 && !isSeparator(target[length - 1])) {
+            length--;
+        }
+        strBufAppend(&path, target, length);
+    }
+    strBufAppendStr(&path, text);
+    char *absolute = hostAbsolutePath(path.data, message, messageSize);
+    ok = absolute != NULL;
+    if (ok) {
+        *matches = hostPathsEqual(source, absolute);
+    }
+    free(absolute);
+    free(text);
+    strBufFree(&path);
+    return ok;
+}
+
+bool hostCreateSymlink(const char *source, const char *target, char *message,
+                       size_t messageSize)
+{
+    wchar_t *wideSource = toWide(source);
+    wchar_t *wideTarget = toWide(target);
+    if (!wideSource || !wideTarget) {
+        free(wideSource);
+        free(wideTarget);
+        snprintf(message, messageSize, "cannot create symlink: invalid UTF-8");
+        return false;
+    }
+    for (wchar_t *p = wideSource; *p; p++) {
+        if (*p == L'/') {
+            *p = L'\\';
+        }
+    }
+    for (wchar_t *p = wideTarget; *p; p++) {
+        if (*p == L'/') {
+            *p = L'\\';
+        }
+    }
+    DWORD attributes = GetFileAttributesW(wideSource);
+    DWORD flags = attributes != INVALID_FILE_ATTRIBUTES &&
+                          (attributes & FILE_ATTRIBUTE_DIRECTORY)
+                      ? SYMBOLIC_LINK_FLAG_DIRECTORY : 0;
+    /* Windows 10 Developer Mode permits this without an elevated token. */
+    bool ok = CreateSymbolicLinkW(wideTarget, wideSource, flags | 0x2) != 0;
+    if (!ok && GetLastError() == ERROR_INVALID_PARAMETER) {
+        ok = CreateSymbolicLinkW(wideTarget, wideSource, flags) != 0;
+    }
+    DWORD error = GetLastError();
+    free(wideSource);
+    free(wideTarget);
+    if (!ok && error == ERROR_PRIVILEGE_NOT_HELD) {
+        snprintf(message, messageSize,
+                 "cannot create symlink %s: enable Windows Developer Mode or "
+                 "run with symbolic-link privileges", target);
+        return false;
+    }
+    return ok || pathError("create symlink", target, error, message, messageSize);
 }
 
 bool hostIsRoot(void)

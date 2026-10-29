@@ -15,5 +15,6 @@ void runLexerTests(void);
 void runFormatTests(void);
 void runLspTests(void);
 void runPackageTests(void);
+void runSymlinkTests(void);
 
 #endif

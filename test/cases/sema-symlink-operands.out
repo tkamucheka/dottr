@@ -1,0 +1,2 @@
+test/cases/sema-symlink-operands.dotfile:4:8: error: variable `SOURCE` is used before it is bound on line 5
+test/cases/sema-symlink-operands.dotfile:4:15: error: undefined variable `TARGET`

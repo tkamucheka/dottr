@@ -124,6 +124,9 @@ static void testCases(void)
     expectFormat("carriage returns", "pkg a do\r\n  needs b\r\nend\r\n",
                  "pkg a do\n  needs b\nend\n");
     expectFormat("no final line end", "pkg a", "pkg a\n");
+    expectFormat("symlink forms",
+                 "pkg a do\nlink  A   B\n link  tree A  B\nend\n",
+                 "pkg a do\n  link A B\n  link tree A B\nend\n");
     expectFormat("carriage return inside comment", "# a\t\r\t\npkg a\n",
                  "# a\npkg a\n");
     expectFormat("raw block at end of input",
