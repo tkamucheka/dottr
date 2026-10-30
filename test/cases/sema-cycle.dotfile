@@ -1,11 +1,11 @@
 # args: check
 # status: 2
-pkg a do
+unit a do
   needs b
 end
-pkg b do
+unit b do
   needs c
 end
-pkg c do
+unit c do
   needs a
 end

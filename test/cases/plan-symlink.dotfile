@@ -1,6 +1,6 @@
 # args: plan --package-manager pacman
 # status: 0
-pkg config do
+unit config do
   local SOURCE = "@{dottr.env.home}/source"
   local TARGET = "@{dottr.env.home}/config"
   local LINK = "@{dottr.env.home}/config-link"

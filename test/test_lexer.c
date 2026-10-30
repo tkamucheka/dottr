@@ -127,13 +127,13 @@ static void expectError(const char *name, const char *source,
 static void testStatements(void)
 {
     LexResult r;
-    lexText("pkg \"tmux\" do\n"
+    lexText("unit \"tmux\" do\n"
             "  local A = \"v\"\n"
             "  needs git, npm\n"
             "  check directory A\n"
             "end\n",
             &r);
-    EXPECT_KINDS("statements", &r, TOK_PKG, TOK_STRING, TOK_DO, TOK_NEWLINE,
+    EXPECT_KINDS("statements", &r, TOK_UNIT, TOK_STRING, TOK_DO, TOK_NEWLINE,
                  TOK_LOCAL, TOK_IDENT, TOK_EQUALS, TOK_STRING, TOK_NEWLINE,
                  TOK_NEEDS, TOK_IDENT, TOK_COMMA, TOK_IDENT, TOK_NEWLINE,
                  TOK_CHECK, TOK_DIRECTORY, TOK_IDENT, TOK_NEWLINE, TOK_END,

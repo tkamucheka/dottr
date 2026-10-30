@@ -1,0 +1,6 @@
+# args: check
+# status: 2
+unit editor do
+  pkg helper do
+  end
+end

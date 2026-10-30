@@ -47,7 +47,7 @@ typedef struct {
 typedef enum {
     STMT_LOCAL,
     STMT_NEEDS,
-    STMT_CHILD_PKG,
+    STMT_PKG,
     STMT_CHECK,
     STMT_CREATE,
     STMT_SYMLINK,
@@ -75,7 +75,7 @@ typedef struct {
             Name package;
             /* Registered child unit name, PARENT-child-PACKAGE. */
             const char *childName;
-        } childPkg;
+        } pkg;
         /* STMT_CHECK and STMT_CREATE. */
         struct {
             PredicateKind kind;

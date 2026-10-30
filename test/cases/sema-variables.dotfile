@@ -1,6 +1,6 @@
 # args: check
 # status: 2
-pkg a do
+unit a do
   local A = "@{B}/x"
   local B = "b"
   local B = "again"
@@ -13,6 +13,6 @@ pkg a do
   local Path = "/usr/local/bin"
   local userprofile = "/home/user"
 end
-pkg b do
+unit b do
   local X = "@{B}"
 end

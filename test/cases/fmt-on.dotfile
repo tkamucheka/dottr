@@ -3,7 +3,7 @@
 on   macos,windows do
 pkg a
     end
-pkg b do
+unit b do
 on linux do
       local X = "x"
   end

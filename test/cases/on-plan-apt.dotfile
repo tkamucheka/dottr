@@ -7,7 +7,7 @@ on macos do
   pkg rectangle
 end
 
-pkg neovim do
+unit neovim do
   on linux, macos do
     pkg neovim
   end
@@ -16,7 +16,7 @@ pkg neovim do
   end
 end
 
-pkg fd do
+unit fd do
   on pacman, dnf, brew do
     pkg fd
   end
@@ -28,7 +28,7 @@ pkg fd do
   end
 end
 
-pkg tpm do
+unit tpm do
   needs git
   on linux, macos do
     local TPM_DIR = "/nonexistent/linux/tpm"

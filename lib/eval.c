@@ -389,9 +389,9 @@ static bool runStmt(Evaluator *ev, Scope *scope, const Stmt *stmt)
         }
         return true;
 
-    case STMT_CHILD_PKG:
-        return installPackage(ev, stmt->as.childPkg.package.text,
-                              stmt->as.childPkg.childName, stmt->line,
+    case STMT_PKG:
+        return installPackage(ev, stmt->as.pkg.package.text,
+                              stmt->as.pkg.childName, stmt->line,
                               stmt->column);
 
     case STMT_CHECK: {

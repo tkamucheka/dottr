@@ -1,7 +1,7 @@
 # args: apply
 # status: 1
 # os: linux, macos
-pkg broken do
+unit broken do
   apply do
     shell do
       ```
@@ -25,7 +25,7 @@ pkg broken do
   end
 end
 
-pkg dependent do
+unit dependent do
   needs broken
   apply do
     shell do
@@ -36,11 +36,11 @@ pkg dependent do
   end
 end
 
-pkg transitive do
+unit transitive do
   needs dependent
 end
 
-pkg independent do
+unit independent do
   apply do
     shell do
       ```

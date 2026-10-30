@@ -1,7 +1,7 @@
 # args: apply
 # status: 1
 # os: linux, macos
-pkg a do
+unit a do
   local P = "@{dottr.env.home}/file"
   apply do
     shell do

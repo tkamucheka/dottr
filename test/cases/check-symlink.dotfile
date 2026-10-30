@@ -1,7 +1,7 @@
 # args: check
 # status: 0
 pkg tree
-pkg config do
+unit config do
   local SOURCE = "nonexistent-source"
   local TARGET = "nonexistent-target"
   local tree = "a-local-named-tree"

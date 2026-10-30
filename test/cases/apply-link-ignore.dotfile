@@ -1,7 +1,7 @@
 # args: apply
 # status: 0
 # os: linux, macos
-pkg source do
+unit source do
   local ROOT = "@{dottr.env.home}/.dotfiles"
   local CONFIG = "@{ROOT}/.config/editor"
   create directory CONFIG
@@ -25,7 +25,7 @@ pkg source do
   end
 end
 
-pkg config do
+unit config do
   needs source
   local SOURCE = "@{dottr.env.home}/.dotfiles"
   local TARGET = "@{dottr.env.home}"

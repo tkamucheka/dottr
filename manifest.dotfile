@@ -1,7 +1,7 @@
 pkg git
 pkg npm
 
-pkg "tmux" do
+unit "tmux" do
   # variables
   local TPM_DIR = "@{dottr.env.home}/.config/tmux/plugins/tpm"
 
@@ -31,7 +31,7 @@ pkg "tmux" do
   end
 end
 
-pkg "neovim" do
+unit "neovim" do
   local NEOVIM_BIN_DIR = "@{dottr.env.home}/.local/opt/neovim"
   local NEOVIM_SRC_DIR = "@{dottr.env.home}/.local/src/neovim"
   local LOCAL_BIN_DIR = "@{dottr.env.home}/.local/bin"

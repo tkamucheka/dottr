@@ -121,34 +121,34 @@ static void testCases(void)
     expectFormat("empty", "", "");
     expectFormat("blank lines only", "\n\n  \n", "");
     expectFormat("comments only", "  # a  \n\n\n# b", "# a\n\n# b\n");
-    expectFormat("carriage returns", "pkg a do\r\n  needs b\r\nend\r\n",
-                 "pkg a do\n  needs b\nend\n");
+    expectFormat("carriage returns", "unit a do\r\n  needs b\r\nend\r\n",
+                 "unit a do\n  needs b\nend\n");
     expectFormat("no final line end", "pkg a", "pkg a\n");
     expectFormat("symlink forms",
-                 "pkg a do\nlink  A   B\n link  tree A  B\nend\n",
-                 "pkg a do\n  link A B\n  link tree A B\nend\n");
+                 "unit a do\nlink  A   B\n link  tree A  B\nend\n",
+                 "unit a do\n  link A B\n  link tree A B\nend\n");
     expectFormat("carriage return inside comment", "# a\t\r\t\npkg a\n",
                  "# a\npkg a\n");
     expectFormat("raw block at end of input",
-                 "pkg a do\napply do\nshell do\n```\necho\n```\nend\nend\nend",
-                 "pkg a do\n  apply do\n    shell do\n      ```\n      echo\n"
+                 "unit a do\napply do\nshell do\n```\necho\n```\nend\nend\nend",
+                 "unit a do\n  apply do\n    shell do\n      ```\n      echo\n"
                  "      ```\n    end\n  end\nend\n");
     expectFormat("empty raw block",
-                 "pkg a do\n apply do\n  shell do\n   ```zsh\n   ```\n  end\n"
+                 "unit a do\n apply do\n  shell do\n   ```zsh\n   ```\n  end\n"
                  " end\nend\n",
-                 "pkg a do\n  apply do\n    shell do\n      ```zsh\n"
+                 "unit a do\n  apply do\n    shell do\n      ```zsh\n"
                  "      ```\n    end\n  end\nend\n");
     expectFormat("tab margin",
-                 "pkg a do\n\tapply do\n\t\tshell do\n\t\t\t```\n\t\t\tif x; "
+                 "unit a do\n\tapply do\n\t\tshell do\n\t\t\t```\n\t\t\tif x; "
                  "then\n\t\t\t\techo\n\t\t\tfi\n\t\t\t```\n\t\tend\n\tend\n"
                  "end\n",
-                 "pkg a do\n  apply do\n    shell do\n      ```\n      if x; "
+                 "unit a do\n  apply do\n    shell do\n      ```\n      if x; "
                  "then\n      \techo\n      fi\n      ```\n    end\n  end\n"
                  "end\n");
     expectFormat("apply_unless and empty branches",
-                 "pkg a do\napply_if A do\nelse\nend\napply_unless A do\nend\n"
+                 "unit a do\napply_if A do\nelse\nend\napply_unless A do\nend\n"
                  "end\n",
-                 "pkg a do\n  apply_if A do\n  else\n  end\n"
+                 "unit a do\n  apply_if A do\n  else\n  end\n"
                  "  apply_unless A do\n  end\nend\n");
 }
 
@@ -164,7 +164,7 @@ static void expectEquivalent(const char *name, const char *a, const char *b,
 
 static void testEquivalence(void)
 {
-    const char *raw = "pkg a do\n apply do\n  shell do\n   ```\n   %s\n   ```"
+    const char *raw = "unit a do\n apply do\n  shell do\n   ```\n   %s\n   ```"
                       "\n  end\n end\nend\n";
     char x[256];
     char y[256];
@@ -176,8 +176,8 @@ static void testEquivalence(void)
     expectEquivalent("string lexeme", "pkg \"a\"\n", "pkg a\n", false);
     expectEquivalent("raw contents", x, y, false);
     expectEquivalent("raw dialect",
-                     "pkg a do\napply do\nshell do\n```sh\n```\nend\nend\nend\n",
-                     "pkg a do\napply do\nshell do\n```\n```\nend\nend\nend\n",
+                     "unit a do\napply do\nshell do\n```sh\n```\nend\nend\nend\n",
+                     "unit a do\napply do\nshell do\n```\n```\nend\nend\nend\n",
                      false);
     expectEquivalent("comment text", "# a\n", "# b\n", false);
     expectEquivalent("comment count", "pkg a\n", "pkg a # c\n", false);

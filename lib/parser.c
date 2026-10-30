@@ -485,15 +485,13 @@ static bool parseStmt(Parser *p, const Unit *unit, Stmt *stmt)
 
     case TOK_PKG: {
         advance(p);
-        stmt->kind = STMT_CHILD_PKG;
-        Name *package = &stmt->as.childPkg.package;
+        stmt->kind = STMT_PKG;
+        Name *package = &stmt->as.pkg.package;
         if (!parseUnitName(p, package, "after `pkg`")) {
             return false;
         }
         if (at(p, TOK_DO)) {
-            errorAt(p, peek(p),
-                    "block-form units cannot be nested; only `pkg NAME` is "
-                    "allowed inside a unit");
+            errorAt(p, peek(p), "use `unit NAME do` to declare a block unit");
             return false;
         }
         size_t length = strlen(unit->name.text) + strlen("-child-") +
@@ -501,9 +499,13 @@ static bool parseStmt(Parser *p, const Unit *unit, Stmt *stmt)
         char *childName = arenaAlloc(p->arena, length + 1);
         snprintf(childName, length + 1, "%s-child-%s", unit->name.text,
                  package->text);
-        stmt->as.childPkg.childName = childName;
+        stmt->as.pkg.childName = childName;
         return expect(p, TOK_NEWLINE, "after package name");
     }
+
+    case TOK_UNIT:
+        errorAt(p, peek(p), "units cannot be nested");
+        return false;
 
     case TOK_SYMLINK:
         advance(p);
@@ -635,17 +637,21 @@ static bool parseUnitBody(Parser *p, Unit *unit, size_t *capacity,
 static bool parseUnit(Parser *p, Unit *unit)
 {
     const Token *pkg = advance(p);
-    if (!parseUnitName(p, &unit->name, "after `pkg`")) {
+    if (!parseUnitName(p, &unit->name, "after unit keyword")) {
         return false;
     }
 
-    if (!at(p, TOK_DO)) {
+    if (pkg->kind == TOK_PKG) {
+        if (at(p, TOK_DO)) {
+            errorAt(p, peek(p), "use `unit NAME do` to declare a block unit");
+            return false;
+        }
         unit->isBlock = false;
         return expect(p, TOK_NEWLINE, "after unit name");
     }
 
-    advance(p);
-    if (!expect(p, TOK_NEWLINE, "after `do`")) {
+    if (!expect(p, TOK_DO, "after unit name") ||
+        !expect(p, TOK_NEWLINE, "after `do`")) {
         return false;
     }
     unit->isBlock = true;
@@ -701,6 +707,7 @@ static bool parseTopLevel(Parser *p, const Token *on)
             }
             continue;
         }
+        case TOK_UNIT:
         case TOK_PKG: {
             manifest->units =
                 arenaGrow(p->arena, manifest->units, manifest->count,
@@ -717,7 +724,7 @@ static bool parseTopLevel(Parser *p, const Token *on)
         default:
             break;
         }
-        errorAt(p, token, "expected `pkg` or `on` at top level, found %s",
+        errorAt(p, token, "expected `pkg`, `unit`, or `on` at top level, found %s",
                 describe(p, token));
         return false;
     }

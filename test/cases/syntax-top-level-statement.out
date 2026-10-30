@@ -1,1 +1,1 @@
-test/cases/syntax-top-level-statement.dotfile:3:1: error: expected `pkg` or `on` at top level, found `local`
+test/cases/syntax-top-level-statement.dotfile:3:1: error: expected `pkg`, `unit`, or `on` at top level, found `local`

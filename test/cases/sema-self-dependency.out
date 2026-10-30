@@ -1,1 +1,1 @@
-test/cases/sema-self-dependency.dotfile:3:5: error: dependency cycle: a -> a
+test/cases/sema-self-dependency.dotfile:3:6: error: dependency cycle: a -> a

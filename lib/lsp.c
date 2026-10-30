@@ -549,8 +549,8 @@ static void buildIndex(Document *doc)
                             NULL, stmt);
                 }
                 break;
-            case STMT_CHILD_PKG:
-                addName(doc, OCC_PACKAGE, &stmt->as.childPkg.package, unit,
+            case STMT_PKG:
+                addName(doc, OCC_PACKAGE, &stmt->as.pkg.package, unit,
                         NULL, stmt);
                 break;
             case STMT_SYMLINK: {
@@ -1207,7 +1207,7 @@ static void hoverBuiltin(StrBuf *text, const Occurrence *o)
 static void hoverPackage(StrBuf *text, const Occurrence *o)
 {
     strBufAppendStr(text, "**child unit** ");
-    const char *child = o->stmt->as.childPkg.childName;
+    const char *child = o->stmt->as.pkg.childName;
     appendCode(text, child, strlen(child));
     strBufAppendStr(text, "\n\nInstalls the package ");
     appendCode(text, o->name, strlen(o->name));
@@ -1425,9 +1425,9 @@ static void handleDocumentSymbol(Server *s, const JsonValue *params,
                 name = &stmt->as.local.name;
                 detail = "local";
                 kind = SYMBOL_VARIABLE;
-            } else if (stmt->kind == STMT_CHILD_PKG) {
-                name = &stmt->as.childPkg.package;
-                detail = stmt->as.childPkg.childName;
+            } else if (stmt->kind == STMT_PKG) {
+                name = &stmt->as.pkg.package;
+                detail = stmt->as.pkg.childName;
                 kind = SYMBOL_PACKAGE;
             } else {
                 continue;
@@ -1895,7 +1895,8 @@ static void scanLine(Scan *scan, const char *text, size_t length)
         return;
     }
     bool topLevel = contextBlock(scan) == BLOCK_NONE;
-    if (spanIs(first, "pkg") && words.count >= 2 && topLevel) {
+    if ((spanIs(first, "pkg") || spanIs(first, "unit")) &&
+        words.count >= 2 && topLevel) {
         spanListAdd(&scan->units, unquote(words.words[1]));
     }
     if (inUnit(scan) && spanIs(first, "local") && words.count >= 2) {
@@ -1906,7 +1907,7 @@ static void scanLine(Scan *scan, const char *text, size_t length)
     }
     if (spanIs(last, "do") && scan->depth < MAX_BLOCKS) {
         BlockKind kind = BLOCK_APPLY;
-        if (spanIs(first, "pkg")) {
+        if (spanIs(first, "unit")) {
             kind = BLOCK_UNIT;
             if (topLevel && words.count >= 2) {
                 scan->unitName = unquote(words.words[1]);

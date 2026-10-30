@@ -1,6 +1,6 @@
 # args: check
 # status: 2
-pkg a do
-  pkg b do
+unit a do
+  unit b do
   end
 end

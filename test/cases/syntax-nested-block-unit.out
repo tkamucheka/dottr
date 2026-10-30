@@ -1,1 +1,1 @@
-test/cases/syntax-nested-block-unit.dotfile:4:9: error: block-form units cannot be nested; only `pkg NAME` is allowed inside a unit
+test/cases/syntax-nested-block-unit.dotfile:4:3: error: units cannot be nested

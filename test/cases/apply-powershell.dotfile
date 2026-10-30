@@ -1,7 +1,7 @@
 # args: apply
 # status: 1
 # requires: pwsh
-pkg a do
+unit a do
   local GREETING = "hello"
   apply do
     shell do
@@ -14,7 +14,7 @@ pkg a do
     end
   end
 end
-pkg b do
+unit b do
   apply do
     shell do
       ```pwsh

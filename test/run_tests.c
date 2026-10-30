@@ -300,8 +300,8 @@ static bool runDottr(const char *const *args, RunResult *result)
  */
 static void runFormatWriteTest(bool standalone)
 {
-    static const char input[] = "pkg   a do\nneeds b\n\n\nend\npkg b";
-    static const char expected[] = "pkg a do\n  needs b\nend\npkg b\n";
+    static const char input[] = "unit   a do\nneeds b\n\n\nend\npkg b";
+    static const char expected[] = "unit a do\n  needs b\nend\npkg b\n";
     testCount++;
 
     char dir[4096];

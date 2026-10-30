@@ -1,0 +1,1 @@
+test/cases/syntax-pkg-block.dotfile:3:12: error: use `unit NAME do` to declare a block unit

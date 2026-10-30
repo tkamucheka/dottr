@@ -1,7 +1,7 @@
 # args: apply
 # status: 0
 # os: linux, macos
-pkg a do
+unit a do
   local NAME = "world"
   local GREETING = "hello @{NAME}"
   local SPECIAL = "two  words; $(echo not run) 'quoted' \"double\""
@@ -26,7 +26,7 @@ pkg a do
   end
 end
 
-pkg b do
+unit b do
   needs a
   apply do
     shell do

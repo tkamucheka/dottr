@@ -1,6 +1,6 @@
 # args: check
 # status: 2
-pkg a do
+unit a do
   local D = "/tmp"
   check directory MISSING
   create directory ALSO_MISSING
@@ -12,7 +12,7 @@ pkg a do
   apply_if D do
   end
 end
-pkg b do
+unit b do
   local D = "/tmp"
   apply_if D do
   end

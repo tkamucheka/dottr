@@ -34,6 +34,7 @@ static const struct {
     TokenKind kind;
 } keywords[] = {
     {"pkg", TOK_PKG},
+    {"unit", TOK_UNIT},
     {"do", TOK_DO},
     {"end", TOK_END},
     {"local", TOK_LOCAL},
@@ -587,6 +588,7 @@ const char *tokenKindName(TokenKind kind)
     case TOK_EQUALS: return "'='";
     case TOK_COMMA: return "','";
     case TOK_PKG: return "`pkg`";
+    case TOK_UNIT: return "`unit`";
     case TOK_DO: return "`do`";
     case TOK_END: return "`end`";
     case TOK_LOCAL: return "`local`";

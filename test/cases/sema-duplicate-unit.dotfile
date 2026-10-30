@@ -1,5 +1,5 @@
 # args: check
 # status: 2
 pkg git
-pkg "git" do
+unit "git" do
 end

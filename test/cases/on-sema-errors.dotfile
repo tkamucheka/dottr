@@ -13,7 +13,7 @@ on apt do
   pkg twice
 end
 
-pkg a do
+unit a do
   needs m
   on windows do
     local X = "x"

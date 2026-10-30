@@ -1,1 +1,1 @@
-test/cases/sema-cycle.dotfile:3:5: error: dependency cycle: a -> b -> c -> a
+test/cases/sema-cycle.dotfile:3:6: error: dependency cycle: a -> b -> c -> a

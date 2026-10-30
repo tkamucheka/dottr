@@ -1,7 +1,7 @@
 # args: apply
 # status: 0
 # os: linux, macos
-pkg source do
+unit source do
   local ROOT = "@{dottr.env.home}/source"
   local NESTED = "@{ROOT}/nested"
   create directory NESTED
@@ -15,7 +15,7 @@ pkg source do
   end
 end
 
-pkg config do
+unit config do
   needs source
   local SOURCE = "@{dottr.env.home}/source"
   local FILE = "@{SOURCE}/settings"

@@ -249,7 +249,7 @@ static void analyzeUnitBody(Analyzer *an, const Unit *unit)
 
         case STMT_APPLY:
         case STMT_NEEDS:
-        case STMT_CHILD_PKG:
+        case STMT_PKG:
             break;
         }
     }

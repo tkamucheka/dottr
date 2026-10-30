@@ -1,8 +1,8 @@
 # args: check
 # status: 2
-pkg tmux do
+unit tmux do
   pkg git
 end
-pkg b do
+unit b do
   needs git
 end

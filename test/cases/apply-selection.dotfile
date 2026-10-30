@@ -1,7 +1,7 @@
 # args: apply b
 # status: 0
 # os: linux, macos
-pkg a do
+unit a do
   apply do
     shell do
       ```
@@ -10,7 +10,7 @@ pkg a do
     end
   end
 end
-pkg b do
+unit b do
   needs a
   apply do
     shell do
@@ -20,7 +20,7 @@ pkg b do
     end
   end
 end
-pkg c do
+unit c do
   apply do
     shell do
       ```

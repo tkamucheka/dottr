@@ -1,6 +1,6 @@
 # args: check
 # status: 0
-pkg config do
+unit config do
   on pacman do
     local SOURCE = "arch"
     local TARGET = "@{dottr.env.home}/arch"

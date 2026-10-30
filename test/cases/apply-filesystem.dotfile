@@ -1,7 +1,7 @@
 # args: apply
 # status: 0
 # os: linux, macos
-pkg setup do
+unit setup do
   local ROOT = "@{dottr.env.home}/root"
   local NESTED = "@{ROOT}/a/b/c"
   check directory NESTED
@@ -16,7 +16,7 @@ pkg setup do
   end
 end
 
-pkg config do
+unit config do
   needs setup
   local CONF = "@{dottr.env.home}/root/config.yml"
   check file CONF

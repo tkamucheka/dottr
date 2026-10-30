@@ -1,6 +1,6 @@
 # args: check
 # status: 2
-pkg config do
+unit config do
   apply do
     link SOURCE TARGET
   end

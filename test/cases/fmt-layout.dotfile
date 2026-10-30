@@ -8,7 +8,7 @@ pkg    "tree-sitter-cli"   # trailing
 
 
 
-pkg tmux do
+unit tmux do
 
       local   TPM_DIR="@{dottr.env.home}/tpm"
    needs git ,"tree-sitter-cli"

@@ -4,7 +4,7 @@ pkg zlib
 
 pkg "tree-sitter-cli"
 
-pkg app do
+unit app do
   local ROOT = "@{dottr.env.home}/app"
   local CONF = "@{ROOT}/conf.d"
   needs zlib, "tree-sitter-cli"

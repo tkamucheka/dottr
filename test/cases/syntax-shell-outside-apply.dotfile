@@ -1,6 +1,6 @@
 # args: check
 # status: 2
-pkg a do
+unit a do
   shell do
     ```
     echo hi

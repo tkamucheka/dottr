@@ -18,6 +18,7 @@ typedef enum {
 
     /* Keywords. */
     TOK_PKG,
+    TOK_UNIT,
     TOK_DO,
     TOK_END,
     TOK_LOCAL,

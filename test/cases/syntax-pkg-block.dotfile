@@ -1,0 +1,4 @@
+# args: check
+# status: 2
+pkg editor do
+end

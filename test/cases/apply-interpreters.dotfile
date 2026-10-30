@@ -1,7 +1,7 @@
 # args: apply
 # status: 0
 # os: linux, macos
-pkg a do
+unit a do
   apply do
     shell do
       ```

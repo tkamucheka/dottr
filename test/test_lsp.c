@@ -283,7 +283,7 @@ static const char manifest[] =
     "pkg git\n"                                          /* 0 */
     "pkg \"tree-sitter-cli\"\n"                          /* 1 */
     "\n"                                                 /* 2 */
-    "pkg tmux do\n"                                      /* 3 */
+    "unit tmux do\n"                                      /* 3 */
     "  local TPM = \"@{dottr.env.home}/tpm\"\n"          /* 4 */
     "  local LOG = \"@{TPM}/log\"\n"                     /* 5 */
     "  needs git, \"tree-sitter-cli\"\n"                 /* 6 */
@@ -362,7 +362,7 @@ static void testDiagnostics(void)
     Session s;
     sessionInit(&s);
     sendInitialize(&s, "[\"utf-8\"]");
-    sendOpen(&s, "pkg a do\n  needs missing\n  check file NOPE\nend\n");
+    sendOpen(&s, "unit a do\n  needs missing\n  check file NOPE\nend\n");
     run(&s);
     const JsonValue *d = lastDiagnostics(&s);
     expectCount("semantic diagnostics", d, "params.diagnostics", 2);
@@ -395,7 +395,7 @@ static void testDiagnostics(void)
 
     sessionInit(&s);
     sendInitialize(&s, "[\"utf-8\"]");
-    sendOpen(&s, "pkg a do\n  needs b\nend\npkg b\n");
+    sendOpen(&s, "unit a do\n  needs b\nend\npkg b\n");
     sendf(&s, "{\"jsonrpc\":\"2.0\",\"method\":\"textDocument/didChange\","
               "\"params\":{\"textDocument\":{\"uri\":\"" URI "\",\"version\":2},"
               "\"contentChanges\":[{\"range\":{\"start\":{\"line\":1,"
@@ -599,13 +599,13 @@ static void testSymbols(void)
 
     sessionInit(&s);
     sendInitialize(&s, "[\"utf-8\"]");
-    sendOpen(&s, "pkg   a do\nneeds b\nend\npkg b");
+    sendOpen(&s, "unit   a do\nneeds b\nend\npkg b");
     sendf(&s, "{\"jsonrpc\":\"2.0\",\"id\":1,\"method\":"
               "\"textDocument/formatting\",\"params\":{\"textDocument\":"
               "{\"uri\":\"" URI "\"}}}");
     run(&s);
     expectString("formatting", response(&s, 1), "result[0].newText",
-                 "pkg a do\n  needs b\nend\npkg b\n");
+                 "unit a do\n  needs b\nend\npkg b\n");
     expectInt("formatting", response(&s, 1), "result[0].range.end.line", 3);
     sessionFree(&s);
 }
@@ -615,7 +615,7 @@ static void testCompletion(void)
     static const char text[] =
         "pkg git\n"                       /* 0 */
         "pkg \"tree-sitter-cli\"\n"       /* 1 */
-        "pkg app do\n"                    /* 2 */
+        "unit app do\n"                    /* 2 */
         "  local ROOT = \"x\"\n"          /* 3 */
         "  local CONF = \"x\"\n"          /* 4 */
         "  check directory ROOT\n"        /* 5 */
@@ -693,7 +693,7 @@ static void testCompletion(void)
 static void testShellUses(void)
 {
     static const char text[] =
-        "pkg a do\n"                                            /* 0 */
+        "unit a do\n"                                            /* 0 */
         "  local V = \"x\"\n"                                   /* 1 */
         "  apply do\n"                                          /* 2 */
         "    shell do\n"                                        /* 3 */
@@ -739,7 +739,7 @@ static void testUtf16(void)
     Session s;
     sessionInit(&s);
     sendInitialize(&s, "[\"utf-16\"]");
-    sendOpen(&s, "pkg a do\n  local A = \"x\"\n  local B = \"\xC3\xA9\xF0\x9F"
+    sendOpen(&s, "unit a do\n  local A = \"x\"\n  local B = \"\xC3\xA9\xF0\x9F"
                  "\x98\x80@{A}\"\n  check file MISSING\nend\n");
     sendAt(&s, 1, "textDocument/definition", 2, 18, NULL);
     sendAt(&s, 2, "textDocument/references", 1, 8,
@@ -763,7 +763,7 @@ static void testOnBlocks(void)
         "on macos do\n"                      /* 1 */
         "  pkg rectangle\n"                  /* 2 */
         "end\n"                              /* 3 */
-        "pkg app do\n"                       /* 4 */
+        "unit app do\n"                       /* 4 */
         "  on linux, macos do\n"             /* 5 */
         "    local DIR = \"a\"\n"            /* 6 */
         "  end\n"                            /* 7 */
@@ -812,7 +812,7 @@ static void testOnBlocks(void)
     static const char partial[] =
         "on \n"                              /* 0 */
         "on linux, \n"                       /* 1 */
-        "pkg a do\n"                         /* 2 */
+        "unit a do\n"                         /* 2 */
         "  on linux do\n"                    /* 3 */
         "    \n"                             /* 4 */
         "  end\n"                            /* 5 */
@@ -854,7 +854,7 @@ static void testOnBlocks(void)
 static void testSymlink(void)
 {
     static const char text[] =
-        "pkg config do\n"
+        "unit config do\n"
         "  local SOURCE = \"source\"\n"
         "  local TARGET = \"target\"\n"
         "  local RULES = \"rules\"\n"
@@ -891,7 +891,7 @@ static void testSymlink(void)
     sessionFree(&s);
 
     static const char partial[] =
-        "pkg config do\n"
+        "unit config do\n"
         "  local SOURCE = \"source\"\n"
         "  local TARGET = \"target\"\n"
         "  local RULES = \"rules\"\n"

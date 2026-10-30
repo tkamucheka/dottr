@@ -1,6 +1,6 @@
 # args: plan --package-manager pacman
 # status: 0
-pkg a do
+unit a do
   local DIR = "@{dottr.env.home}/a"
   apply do
     shell do

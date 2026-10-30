@@ -1,12 +1,12 @@
 # args: plan c
 # status: 0
-pkg a do
+unit a do
 end
-pkg b do
+unit b do
   needs a
 end
-pkg c do
+unit c do
   needs a
 end
-pkg d do
+unit d do
 end
