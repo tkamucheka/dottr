@@ -103,7 +103,7 @@ static const CliCase cliCases[] = {
      {"plan", "--package-manager", "apt", "-f",
       "test/cases/on-plan-apt.dotfile", "rectangle", NULL},
      2, "dottr: error: unit 'rectangle' of test/cases/on-plan-apt.dotfile "
-        "does not exist on apt",
+        "does not exist on debian",
      NULL, NULL},
     {"apply with the package manager of another system",
      {"apply", "--package-manager", FOREIGN_MANAGER, "-f",

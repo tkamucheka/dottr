@@ -1,0 +1,11 @@
+# args: plan --package-manager dnf
+# status: 0
+on redhat do
+  pkg git
+end
+on rhel do
+  pkg curl
+end
+on fedora do
+  pkg jq
+end

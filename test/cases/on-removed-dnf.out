@@ -1,0 +1,1 @@
+test/cases/on-removed-dnf.dotfile:3:4: error: `on dnf` selects by package manager; use `on fedora`

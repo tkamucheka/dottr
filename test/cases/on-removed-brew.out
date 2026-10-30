@@ -1,0 +1,1 @@
+test/cases/on-removed-brew.dotfile:3:4: error: `on brew` selects by package manager; use `on macos`

@@ -832,11 +832,11 @@ static void testOnBlocks(void)
     sendAt(&s, 4, "textDocument/completion", 8, 6, NULL);
     run(&s);
 
-    const char *const selectors[] = {"linux", "macos", "windows", "pacman",
-                                     "apt", "winget", NULL};
+    const char *const selectors[] = {"linux", "macos", "windows", "arch",
+                                     "debian", "fedora", "redhat", "rhel", NULL};
     expectLabels("lsp on: selectors", at(response(&s, 1), "result"),
                  selectors, NULL);
-    const char *const remaining[] = {"macos", "apt", NULL};
+    const char *const remaining[] = {"macos", "debian", NULL};
     const char *const listed[] = {"linux", NULL};
     expectLabels("lsp on: remaining selectors", at(response(&s, 2), "result"),
                  remaining, listed);
@@ -954,11 +954,11 @@ static void testPackageLists(void)
 
     sessionInit(&s);
     sendInitialize(&s, "[\"utf-8\"]");
-    sendOpen(&s, "on apt, # select\n\n # systems\n \n");
+    sendOpen(&s, "on debian, # select\n\n # systems\n \n");
     sendAt(&s, 1, "textDocument/completion", 3, 1, NULL);
     run(&s);
-    const char *const systems[] = {"pacman", "brew", NULL};
-    const char *const listed[] = {"apt", "unit", NULL};
+    const char *const systems[] = {"arch", "macos", NULL};
+    const char *const listed[] = {"debian", "unit", NULL};
     expectLabels("continued on", at(response(&s, 1), "result"), systems, listed);
     sessionFree(&s);
 

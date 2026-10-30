@@ -1,6 +1,6 @@
 # args: plan --package-manager brew
 # status: 0
-# The view of a manifest with `on` blocks on brew.
+# The view of a manifest with `on` blocks on macos.
 pkg git
 
 on macos do
@@ -17,10 +17,10 @@ unit neovim do
 end
 
 unit fd do
-  on pacman, dnf, brew do
+  on arch, fedora, macos do
     pkg fd
   end
-  on apt do
+  on debian do
     pkg "fd-find"
   end
   on windows do

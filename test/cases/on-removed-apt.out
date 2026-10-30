@@ -1,0 +1,1 @@
+test/cases/on-removed-apt.dotfile:3:4: error: `on apt` selects by package manager; use `on debian`

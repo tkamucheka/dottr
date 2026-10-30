@@ -1,0 +1,5 @@
+# args: check
+# status: 2
+on winget do
+  pkg git
+end

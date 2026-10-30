@@ -489,7 +489,7 @@ static int compareDiagnostics(const void *a, const void *b)
 }
 
 static const SystemSet everySystem[] = {
-    SYSTEM_PACMAN, SYSTEM_APT, SYSTEM_DNF, SYSTEM_BREW, SYSTEM_WINGET,
+    SYSTEM_ARCH, SYSTEM_DEBIAN, SYSTEM_FEDORA, SYSTEM_MACOS, SYSTEM_WINDOWS,
 };
 
 bool analyzeManifest(Arena *arena, Manifest *manifest, Diag *diag)

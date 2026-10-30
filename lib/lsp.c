@@ -2169,8 +2169,8 @@ static void handleCompletion(Server *s, const JsonValue *params, Reply *reply)
         addKeywords(&w, s, &scan);
     } else if (spanIs(context[0], "on") && !spanIs(context[count - 1], "do")) {
         static const char *const selectors[] = {
-            "linux", "macos", "windows", "pacman",
-            "apt",   "dnf",   "brew",    "winget",
+            "linux", "arch", "debian", "fedora", "redhat", "rhel",
+            "macos", "windows",
         };
         for (size_t i = 0; i < sizeof selectors / sizeof selectors[0]; i++) {
             bool listed = false;

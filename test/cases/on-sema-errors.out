@@ -1,4 +1,4 @@
-test/cases/on-sema-errors.dotfile:13:7: error: duplicate unit `twice`; first declared on line 9 (on apt)
+test/cases/on-sema-errors.dotfile:13:7: error: duplicate unit `twice`; first declared on line 9 (on debian)
 test/cases/on-sema-errors.dotfile:17:9: error: unit `m` is not declared on this system; its declaration on line 5 is inside an `on` block (on linux, windows)
 test/cases/on-sema-errors.dotfile:21:19: error: undefined variable `X` (on linux, macos)
-test/cases/on-sema-errors.dotfile:26:11: error: variable `Y` is already bound on line 23 (on apt)
+test/cases/on-sema-errors.dotfile:26:11: error: variable `Y` is already bound on line 23 (on debian)

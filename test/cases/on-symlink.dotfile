@@ -1,12 +1,12 @@
 # args: check
 # status: 0
 unit config do
-  on pacman do
+  on arch do
     local SOURCE = "arch"
     local TARGET = "@{dottr.env.home}/arch"
     link tree SOURCE TARGET
   end
-  on apt do
+  on debian do
     local SOURCE = "debian"
     local TARGET = "@{dottr.env.home}/debian"
     link SOURCE TARGET

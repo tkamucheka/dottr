@@ -1,0 +1,8 @@
+unit git
+  install package git: sudo dnf install -y git
+
+unit curl
+  install package curl: sudo dnf install -y curl
+
+unit jq
+  install package jq: sudo dnf install -y jq

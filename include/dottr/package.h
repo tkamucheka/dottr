@@ -31,14 +31,12 @@ typedef enum {
  */
 typedef unsigned SystemSet;
 
-#define SYSTEM_PACMAN 0x01u
-#define SYSTEM_APT 0x02u
-#define SYSTEM_DNF 0x04u
-#define SYSTEM_BREW 0x08u
-#define SYSTEM_WINGET 0x10u
-#define SYSTEM_LINUX (SYSTEM_PACMAN | SYSTEM_APT | SYSTEM_DNF)
-#define SYSTEM_MACOS SYSTEM_BREW
-#define SYSTEM_WINDOWS SYSTEM_WINGET
+#define SYSTEM_ARCH 0x01u
+#define SYSTEM_DEBIAN 0x02u
+#define SYSTEM_FEDORA 0x04u
+#define SYSTEM_MACOS 0x08u
+#define SYSTEM_WINDOWS 0x10u
+#define SYSTEM_LINUX (SYSTEM_ARCH | SYSTEM_DEBIAN | SYSTEM_FEDORA)
 #define SYSTEM_ALL (SYSTEM_LINUX | SYSTEM_MACOS | SYSTEM_WINDOWS)
 
 /* The systems of a package manager, or 0 for PACKAGE_MANAGER_NONE. */
@@ -46,16 +44,19 @@ SystemSet packageManagerSystems(PackageManager manager);
 
 /*
  * The systems named by an `on` selector: an operating system (linux, macos,
- * windows) or a package manager. Returns 0 for an unknown selector.
+ * windows) or a distribution family. Returns 0 for an unknown selector.
  */
 SystemSet systemSelector(const char *name);
 
+/* Family replacement for a removed package-manager selector, or NULL. */
+const char *systemSelectorReplacement(const char *name);
+
 /* Comma-separated list of the selectors valid in an `on` block. */
-#define SYSTEM_SELECTORS "linux, macos, windows, pacman, apt, dnf, brew, winget"
+#define SYSTEM_SELECTORS "linux, arch, debian, fedora, redhat, rhel, macos, windows"
 
 /*
  * Describes a set of systems for a diagnostic, naming an operating system
- * when all of its systems are included: "linux, brew" or "apt, dnf".
+ * when all of its systems are included: "linux, macos" or "debian, fedora".
  */
 void describeSystems(SystemSet systems, char *buffer, size_t size);
 

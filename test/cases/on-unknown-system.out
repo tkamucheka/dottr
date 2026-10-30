@@ -1,1 +1,1 @@
-test/cases/on-unknown-system.dotfile:3:4: error: unknown system `bsd`; expected one of linux, macos, windows, pacman, apt, dnf, brew, winget
+test/cases/on-unknown-system.dotfile:3:4: error: unknown system `bsd`; expected one of linux, arch, debian, fedora, redhat, rhel, macos, windows

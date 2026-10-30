@@ -1,8 +1,8 @@
 # args: plan --package-manager apt app
 # status: 0
-on apt, # manager
+on debian, # manager
 
-   pacman do
+   arch do
   pkg git,
       # another dependency
       curl

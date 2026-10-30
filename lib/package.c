@@ -188,11 +188,11 @@ bool packageQueryCommand(PackageManager manager, const char *package,
 SystemSet packageManagerSystems(PackageManager manager)
 {
     switch (manager) {
-    case PACKAGE_MANAGER_PACMAN: return SYSTEM_PACMAN;
-    case PACKAGE_MANAGER_APT: return SYSTEM_APT;
-    case PACKAGE_MANAGER_DNF: return SYSTEM_DNF;
-    case PACKAGE_MANAGER_BREW: return SYSTEM_BREW;
-    case PACKAGE_MANAGER_WINGET: return SYSTEM_WINGET;
+    case PACKAGE_MANAGER_PACMAN: return SYSTEM_ARCH;
+    case PACKAGE_MANAGER_APT: return SYSTEM_DEBIAN;
+    case PACKAGE_MANAGER_DNF: return SYSTEM_FEDORA;
+    case PACKAGE_MANAGER_BREW: return SYSTEM_MACOS;
+    case PACKAGE_MANAGER_WINGET: return SYSTEM_WINDOWS;
     case PACKAGE_MANAGER_NONE: break;
     }
     return 0;
@@ -201,12 +201,34 @@ SystemSet packageManagerSystems(PackageManager manager)
 static const struct {
     const char *name;
     SystemSet systems;
+    bool canonical;
 } selectors[] = {
-    {"linux", SYSTEM_LINUX},   {"macos", SYSTEM_MACOS},
-    {"windows", SYSTEM_WINDOWS}, {"pacman", SYSTEM_PACMAN},
-    {"apt", SYSTEM_APT},       {"dnf", SYSTEM_DNF},
-    {"brew", SYSTEM_BREW},     {"winget", SYSTEM_WINGET},
+    {"linux", SYSTEM_LINUX, true},
+    {"arch", SYSTEM_ARCH, true},
+    {"debian", SYSTEM_DEBIAN, true},
+    {"fedora", SYSTEM_FEDORA, true},
+    {"redhat", SYSTEM_FEDORA, false},
+    {"rhel", SYSTEM_FEDORA, false},
+    {"macos", SYSTEM_MACOS, true},
+    {"windows", SYSTEM_WINDOWS, true},
 };
+
+const char *systemSelectorReplacement(const char *name)
+{
+    static const struct {
+        const char *removed;
+        const char *replacement;
+    } removed[] = {
+        {"pacman", "arch"}, {"apt", "debian"}, {"dnf", "fedora"},
+        {"brew", "macos"}, {"winget", "windows"},
+    };
+    for (size_t i = 0; i < sizeof removed / sizeof removed[0]; i++) {
+        if (strcmp(name, removed[i].removed) == 0) {
+            return removed[i].replacement;
+        }
+    }
+    return NULL;
+}
 
 SystemSet systemSelector(const char *name)
 {
@@ -222,10 +244,10 @@ void describeSystems(SystemSet systems, char *buffer, size_t size)
 {
     size_t used = 0;
     buffer[0] = '\0';
-    /* Operating systems first, then the package managers not covered. */
+    /* Collapse all Linux families to linux, and use canonical family names. */
     for (size_t i = 0; i < sizeof selectors / sizeof selectors[0]; i++) {
         SystemSet bits = selectors[i].systems;
-        if ((systems & bits) != bits) {
+        if (!selectors[i].canonical || (systems & bits) != bits) {
             continue;
         }
         systems &= ~bits;

@@ -1,0 +1,1 @@
+test/cases/on-removed-winget.dotfile:3:4: error: `on winget` selects by package manager; use `on windows`

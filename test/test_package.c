@@ -129,17 +129,36 @@ static void testSystems(void)
 {
     testCount++;
     if (systemSelector("linux") != SYSTEM_LINUX ||
-        systemSelector("macos") != SYSTEM_BREW ||
-        systemSelector("windows") != SYSTEM_WINGET ||
-        systemSelector("apt") != SYSTEM_APT || systemSelector("bsd") != 0 ||
+        systemSelector("macos") != SYSTEM_MACOS ||
+        systemSelector("windows") != SYSTEM_WINDOWS ||
+        systemSelector("arch") != SYSTEM_ARCH ||
+        systemSelector("debian") != SYSTEM_DEBIAN ||
+        systemSelector("fedora") != SYSTEM_FEDORA ||
+        systemSelector("redhat") != SYSTEM_FEDORA ||
+        systemSelector("rhel") != SYSTEM_FEDORA || systemSelector("bsd") != 0 ||
         systemSelector("Linux") != 0) {
         TEST_FAIL("package: wrong systems of a selector");
     }
 
     expectDescription(SYSTEM_ALL, "linux, macos, windows");
-    expectDescription(SYSTEM_LINUX | SYSTEM_WINGET, "linux, windows");
-    expectDescription(SYSTEM_APT | SYSTEM_DNF, "apt, dnf");
-    expectDescription(SYSTEM_PACMAN | SYSTEM_BREW, "macos, pacman");
+    expectDescription(SYSTEM_LINUX | SYSTEM_WINDOWS, "linux, windows");
+    expectDescription(SYSTEM_DEBIAN | SYSTEM_FEDORA, "debian, fedora");
+    expectDescription(SYSTEM_ARCH | SYSTEM_MACOS, "arch, macos");
+    expectDescription(systemSelector("redhat") | systemSelector("rhel"), "fedora");
+    static const char *const managers[] = {"pacman", "apt", "dnf", "brew", "winget"};
+    static const char *const families[] = {"arch", "debian", "fedora", "macos", "windows"};
+    for (size_t i = 0; i < sizeof managers / sizeof managers[0]; i++) {
+        testCount++;
+        const char *replacement = systemSelectorReplacement(managers[i]);
+        if (systemSelector(managers[i]) || !replacement ||
+            strcmp(replacement, families[i]) != 0) {
+            TEST_FAIL("package: wrong replacement for %s", managers[i]);
+        }
+    }
+    testCount++;
+    if (systemSelectorReplacement("fedora") || systemSelectorReplacement("bsd")) {
+        TEST_FAIL("package: only removed selectors have replacements");
+    }
 }
 
 void runPackageTests(void)

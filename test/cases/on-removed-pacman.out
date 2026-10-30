@@ -1,0 +1,1 @@
+test/cases/on-removed-pacman.dotfile:3:4: error: `on pacman` selects by package manager; use `on arch`

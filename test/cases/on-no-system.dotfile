@@ -2,7 +2,7 @@
 # status: 2
 # An `on` block inside another must share one of its systems.
 on windows do
-  on apt do
+  on debian do
     pkg x
   end
 end

@@ -1,1 +1,1 @@
-test/cases/on-missing-system.dotfile:3:4: error: expected a system after `on` (linux, macos, windows, pacman, apt, dnf, brew, winget), found `do`
+test/cases/on-missing-system.dotfile:3:4: error: expected a system after `on` (linux, arch, debian, fedora, redhat, rhel, macos, windows), found `do`

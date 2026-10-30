@@ -183,6 +183,13 @@ static bool beginOn(Parser *p, size_t *index, SystemSet *outer)
         Name selector = nameFrom(p, token);
         SystemSet systems = systemSelector(selector.text);
         if (systems == 0) {
+            const char *replacement = systemSelectorReplacement(selector.text);
+            if (replacement) {
+                errorAt(p, token,
+                        "`on %s` selects by package manager; use `on %s`",
+                        selector.text, replacement);
+                return false;
+            }
             errorAt(p, token, "unknown system `%s`; expected one of %s",
                     selector.text, SYSTEM_SELECTORS);
             return false;

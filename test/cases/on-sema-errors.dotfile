@@ -9,7 +9,7 @@ on linux do
   pkg twice
 end
 
-on apt do
+on debian do
   pkg twice
 end
 
@@ -22,7 +22,7 @@ unit a do
   on linux do
     local Y = "y"
   end
-  on apt do
+  on debian do
     local Y = "z"
   end
 end
