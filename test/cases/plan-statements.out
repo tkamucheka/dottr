@@ -9,7 +9,7 @@ unit app
   local CONF = "$HOME/app/conf.d"
   needs zlib, tree-sitter-cli
   needs zlib
-  install package app-data (child unit app-child-app-data): sudo pacman -S --needed --noconfirm app-data
+  install package app-data: sudo pacman -S --needed --noconfirm app-data
   check directory ROOT: $HOME/app (currently false)
   check file CONF: $HOME/app/conf.d (currently false)
   check command ROOT: $HOME/app (currently false)

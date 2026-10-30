@@ -1,0 +1,3 @@
+unit tools
+  install package Git.Git: winget install --exact --silent --accept-package-agreements --accept-source-agreements --id Git.Git
+  install package jqlang.jq: winget install --exact --silent --accept-package-agreements --accept-source-agreements --id jqlang.jq

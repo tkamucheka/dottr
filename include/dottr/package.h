@@ -75,17 +75,20 @@ OperatingSystem packageManagerSystem(PackageManager manager);
  */
 PackageManager detectPackageManager(void);
 
-/* Capacity of the argv array of packageInstallCommand, including NULL. */
-#define PACKAGE_COMMAND_MAX 12
+/* Maximum fixed arguments plus NULL; add the number of package names. */
+#define PACKAGE_COMMAND_OVERHEAD 9
+/* Capacity of the fixed-size query command, including NULL. */
+#define PACKAGE_QUERY_COMMAND_MAX 7
 
 /*
- * Fills argv with the command that installs package with manager, prefixed
+ * Fills argv (capacity count + PACKAGE_COMMAND_OVERHEAD) with a command
+ * that installs packages with manager, prefixed
  * with sudo where the manager requires root and root is false. Returns false
  * and writes a description to message if the package cannot be installed
  * this way, such as with Homebrew as root.
  */
-bool packageInstallCommand(PackageManager manager, const char *package,
-                           bool root, const char **argv, char *message,
+bool packageInstallCommand(PackageManager manager, const char *const *packages,
+                           size_t count, bool root, const char **argv, char *message,
                            size_t messageSize);
 
 /*

@@ -72,9 +72,8 @@ typedef struct {
             size_t count;
         } needs;
         struct {
-            Name package;
-            /* Registered child unit name, PARENT-child-PACKAGE. */
-            const char *childName;
+            Name *names;
+            size_t count;
         } pkg;
         /* STMT_CHECK and STMT_CREATE. */
         struct {

@@ -550,8 +550,10 @@ static void buildIndex(Document *doc)
                 }
                 break;
             case STMT_PKG:
-                addName(doc, OCC_PACKAGE, &stmt->as.pkg.package, unit,
-                        NULL, stmt);
+                for (size_t j = 0; j < stmt->as.pkg.count; j++) {
+                    addName(doc, OCC_PACKAGE, &stmt->as.pkg.names[j], unit,
+                            NULL, stmt);
+                }
                 break;
             case STMT_SYMLINK: {
                 const Name *names[] = {&stmt->as.symlink.source,
@@ -1206,13 +1208,10 @@ static void hoverBuiltin(StrBuf *text, const Occurrence *o)
 
 static void hoverPackage(StrBuf *text, const Occurrence *o)
 {
-    strBufAppendStr(text, "**child unit** ");
-    const char *child = o->stmt->as.pkg.childName;
-    appendCode(text, child, strlen(child));
-    strBufAppendStr(text, "\n\nInstalls the package ");
+    strBufAppendStr(text, "**package** ");
     appendCode(text, o->name, strlen(o->name));
-    strBufAppendStr(text, " with the system package manager. Child units "
-                          "cannot be named in `needs`.");
+    strBufAppendStr(text, "\n\nInstalls with the system package manager. "
+                          "This statement does not declare a unit.");
 }
 
 /* The keyword token at an offset, or NULL. */
@@ -1426,9 +1425,22 @@ static void handleDocumentSymbol(Server *s, const JsonValue *params,
                 detail = "local";
                 kind = SYMBOL_VARIABLE;
             } else if (stmt->kind == STMT_PKG) {
-                name = &stmt->as.pkg.package;
-                detail = stmt->as.pkg.childName;
-                kind = SYMBOL_PACKAGE;
+                for (size_t j = 0; j < stmt->as.pkg.count; j++) {
+                    name = &stmt->as.pkg.names[j];
+                    size_t lineStart = lineIndentEnd(doc,
+                            offsetAt(doc, name->line, 1));
+                    size_t lineStop = lineEnd(doc, (size_t)name->line - 1);
+                    nameRange(doc, name, &nameStart, &nameEnd, &unused, &unused);
+                    if (!first) {
+                        strBufAppendChar(out, ',');
+                    }
+                    writeSymbol(out, s, doc, name->text, "package",
+                                SYMBOL_PACKAGE, lineStart, lineStop,
+                                nameStart, nameEnd);
+                    strBufAppendChar(out, '}');
+                    first = false;
+                }
+                continue;
             } else {
                 continue;
             }

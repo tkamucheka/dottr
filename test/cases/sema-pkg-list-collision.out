@@ -1,0 +1,1 @@
+test/cases/sema-pkg-list-collision.dotfile:4:6: error: duplicate unit `curl`; first declared on line 3

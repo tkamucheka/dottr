@@ -5,10 +5,10 @@ unit rectangle
   install package rectangle: brew install rectangle
 
 unit neovim
-  install package neovim (child unit neovim-child-neovim): brew install neovim
+  install package neovim: brew install neovim
 
 unit fd
-  install package fd (child unit fd-child-fd): brew install fd
+  install package fd: brew install fd
 
 unit tpm
   needs git

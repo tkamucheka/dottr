@@ -2,10 +2,10 @@ unit git
   install package git: winget install --exact --silent --accept-package-agreements --accept-source-agreements --id git
 
 unit neovim
-  install package Neovim.Neovim (child unit neovim-child-Neovim.Neovim): winget install --exact --silent --accept-package-agreements --accept-source-agreements --id Neovim.Neovim
+  install package Neovim.Neovim: winget install --exact --silent --accept-package-agreements --accept-source-agreements --id Neovim.Neovim
 
 unit fd
-  install package sharkdp.fd (child unit fd-child-sharkdp.fd): winget install --exact --silent --accept-package-agreements --accept-source-agreements --id sharkdp.fd
+  install package sharkdp.fd: winget install --exact --silent --accept-package-agreements --accept-source-agreements --id sharkdp.fd
 
 unit tpm
   needs git

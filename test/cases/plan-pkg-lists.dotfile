@@ -1,0 +1,7 @@
+# args: plan --package-manager pacman app
+# status: 0
+pkg git, "curl", ripgrep
+unit app do
+  needs curl
+  pkg tmux, "tree-sitter-cli", jq
+end

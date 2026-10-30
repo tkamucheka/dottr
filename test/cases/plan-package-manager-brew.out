@@ -5,4 +5,4 @@ unit tree-sitter-cli
   install package tree-sitter-cli: brew install tree-sitter-cli
 
 unit tmux
-  install package tmux (child unit tmux-child-tmux): brew install tmux
+  install package tmux: brew install tmux

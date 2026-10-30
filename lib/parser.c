@@ -437,7 +437,37 @@ static bool parsePredicateKind(Parser *p, PredicateKind *kind,
     return true;
 }
 
-static bool parseStmt(Parser *p, const Unit *unit, Stmt *stmt)
+static bool parsePackageNames(Parser *p, Name **names, size_t *count)
+{
+    advance(p);
+    size_t capacity = 0;
+    for (;;) {
+        Name name;
+        if (!parseUnitName(p, &name, "in `pkg`")) {
+            return false;
+        }
+        for (size_t i = 0; i < *count; i++) {
+            if (strcmp((*names)[i].text, name.text) == 0) {
+                diagError(p->diag, name.line, name.column,
+                          "duplicate package `%s` in list", name.text);
+                return false;
+            }
+        }
+        *names = arenaGrow(p->arena, *names, *count, &capacity, sizeof **names);
+        (*names)[(*count)++] = name;
+        if (!at(p, TOK_COMMA)) {
+            break;
+        }
+        advance(p);
+    }
+    if (at(p, TOK_DO)) {
+        errorAt(p, peek(p), "use `unit NAME do` to declare a block unit");
+        return false;
+    }
+    return expect(p, TOK_NEWLINE, "after package list");
+}
+
+static bool parseStmt(Parser *p, Stmt *stmt)
 {
     const Token *token = peek(p);
     stmt->line = token->line;
@@ -484,23 +514,8 @@ static bool parseStmt(Parser *p, const Unit *unit, Stmt *stmt)
     }
 
     case TOK_PKG: {
-        advance(p);
         stmt->kind = STMT_PKG;
-        Name *package = &stmt->as.pkg.package;
-        if (!parseUnitName(p, package, "after `pkg`")) {
-            return false;
-        }
-        if (at(p, TOK_DO)) {
-            errorAt(p, peek(p), "use `unit NAME do` to declare a block unit");
-            return false;
-        }
-        size_t length = strlen(unit->name.text) + strlen("-child-") +
-                        strlen(package->text);
-        char *childName = arenaAlloc(p->arena, length + 1);
-        snprintf(childName, length + 1, "%s-child-%s", unit->name.text,
-                 package->text);
-        stmt->as.pkg.childName = childName;
-        return expect(p, TOK_NEWLINE, "after package name");
+        return parsePackageNames(p, &stmt->as.pkg.names, &stmt->as.pkg.count);
     }
 
     case TOK_UNIT:
@@ -626,7 +641,7 @@ static bool parseUnitBody(Parser *p, Unit *unit, size_t *capacity,
                                 capacity, sizeof *unit->stmts);
         Stmt *stmt = &unit->stmts[unit->stmtCount];
         memset(stmt, 0, sizeof *stmt);
-        if (!parseStmt(p, unit, stmt)) {
+        if (!parseStmt(p, stmt)) {
             return false;
         }
         stmt->systems = p->systems;
@@ -639,15 +654,6 @@ static bool parseUnit(Parser *p, Unit *unit)
     const Token *pkg = advance(p);
     if (!parseUnitName(p, &unit->name, "after unit keyword")) {
         return false;
-    }
-
-    if (pkg->kind == TOK_PKG) {
-        if (at(p, TOK_DO)) {
-            errorAt(p, peek(p), "use `unit NAME do` to declare a block unit");
-            return false;
-        }
-        unit->isBlock = false;
-        return expect(p, TOK_NEWLINE, "after unit name");
     }
 
     if (!expect(p, TOK_DO, "after unit name") ||
@@ -707,8 +713,24 @@ static bool parseTopLevel(Parser *p, const Token *on)
             }
             continue;
         }
-        case TOK_UNIT:
         case TOK_PKG: {
+            Name *names = NULL;
+            size_t count = 0;
+            if (!parsePackageNames(p, &names, &count)) {
+                return false;
+            }
+            for (size_t i = 0; i < count; i++) {
+                manifest->units = arenaGrow(p->arena, manifest->units,
+                        manifest->count, &p->unitCapacity,
+                        sizeof *manifest->units);
+                Unit *unit = &manifest->units[manifest->count++];
+                memset(unit, 0, sizeof *unit);
+                unit->name = names[i];
+                unit->systems = p->systems;
+            }
+            continue;
+        }
+        case TOK_UNIT: {
             manifest->units =
                 arenaGrow(p->arena, manifest->units, manifest->count,
                           &p->unitCapacity, sizeof *manifest->units);

@@ -1,0 +1,1 @@
+test/cases/syntax-pkg-duplicate-body.dotfile:4:12: error: duplicate package `git` in list

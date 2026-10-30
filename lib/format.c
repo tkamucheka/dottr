@@ -79,7 +79,8 @@ static void collectCodeLines(const TokenList *tokens, LineList *lines)
         }
         size_t first = i;
         while (i < tokens->count && tokens->items[i].kind != TOK_NEWLINE &&
-               tokens->items[i].kind != TOK_EOF) {
+               tokens->items[i].kind != TOK_EOF &&
+               tokens->items[i].line == token->line) {
             i++;
         }
         addLine(lines, (Line){LINE_CODE, token->line, token->line, first, i,
@@ -177,6 +178,7 @@ static void printLines(StrBuf *out, const TokenList *tokens,
                        const LineList *lines)
 {
     int depth = 0;
+    int continuation = 0;
     bool previousOpens = false;
     const Line *previous = NULL;
 
@@ -202,12 +204,26 @@ static void printLines(StrBuf *out, const TokenList *tokens,
             appendRawBlock(out, &tokens->items[line->first], depth);
         } else if (line->kind == LINE_COMMENT) {
             appendIndent(out, depth);
+            for (int j = 0; j < continuation; j++) {
+                strBufAppendChar(out, ' ');
+            }
             strBufAppend(out, line->comment->text,
                          commentLength(line->comment));
             strBufAppendChar(out, '\n');
         } else {
             appendIndent(out, firstKind == TOK_ELSE ? depth - 1 : depth);
+            for (int j = 0; j < continuation; j++) {
+                strBufAppendChar(out, ' ');
+            }
             appendCodeLine(out, tokens, line);
+            if (lastKind == TOK_COMMA) {
+                if (!continuation) {
+                    continuation = firstKind == TOK_NEEDS ? 6 :
+                                   firstKind == TOK_ON ? 3 : 4;
+                }
+            } else {
+                continuation = 0;
+            }
         }
 
         if (lastKind == TOK_DO) {

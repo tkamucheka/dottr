@@ -1,0 +1,9 @@
+unit git
+  install package git: sudo apt-get install -y git
+
+unit curl
+  install package curl: sudo apt-get install -y curl
+
+unit app
+  needs git, curl
+  install package tmux, jq, ripgrep: sudo apt-get install -y tmux jq ripgrep

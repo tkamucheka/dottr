@@ -1,1 +1,1 @@
-test/cases/syntax-unit-keyword.dotfile:3:5: error: expected unit name after unit keyword, found reserved word `unit`; write a unit with this name as a string, "unit"
+test/cases/syntax-unit-keyword.dotfile:3:5: error: expected unit name in `pkg`, found reserved word `unit`; write a unit with this name as a string, "unit"

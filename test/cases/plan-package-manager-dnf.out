@@ -5,4 +5,4 @@ unit tree-sitter-cli
   install package tree-sitter-cli: sudo dnf install -y tree-sitter-cli
 
 unit tmux
-  install package tmux (child unit tmux-child-tmux): sudo dnf install -y tmux
+  install package tmux: sudo dnf install -y tmux

@@ -1,0 +1,1 @@
+test/cases/syntax-pkg-comma-do.dotfile:4:1: error: expected unit name in `pkg`, found reserved word `do`; write a unit with this name as a string, "do"

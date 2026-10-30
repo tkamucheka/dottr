@@ -94,11 +94,16 @@ PackageManager detectPackageManager(void)
     return PACKAGE_MANAGER_NONE;
 }
 
-bool packageInstallCommand(PackageManager manager, const char *package,
-                           bool root, const char **argv, char *message,
+bool packageInstallCommand(PackageManager manager, const char *const *packages,
+                           size_t count, bool root, const char **argv, char *message,
                            size_t messageSize)
 {
     size_t n = 0;
+    if (count == 0 || (manager == PACKAGE_MANAGER_WINGET && count != 1)) {
+        snprintf(message, messageSize,
+                 "expected a nonempty package list, or one package for winget");
+        return false;
+    }
     switch (manager) {
     case PACKAGE_MANAGER_PACMAN:
     case PACKAGE_MANAGER_APT:
@@ -156,7 +161,9 @@ bool packageInstallCommand(PackageManager manager, const char *package,
         break;
     case PACKAGE_MANAGER_NONE: break;
     }
-    argv[n++] = package;
+    for (size_t i = 0; i < count; i++) {
+        argv[n++] = packages[i];
+    }
     argv[n] = NULL;
     return true;
 }

@@ -189,7 +189,8 @@ static Token *emit(Lexer *lx, TokenKind kind, int line, int column,
 
 static void emitNewline(Lexer *lx, int line, int column)
 {
-    if (lx->count > 0 && lx->tokens[lx->count - 1].kind != TOK_NEWLINE) {
+    if (lx->count > 0 && lx->tokens[lx->count - 1].kind != TOK_NEWLINE &&
+        lx->tokens[lx->count - 1].kind != TOK_COMMA) {
         emit(lx, TOK_NEWLINE, line, column, "", 0);
     }
 }

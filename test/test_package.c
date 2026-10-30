@@ -21,10 +21,11 @@ static void expectCommand(PackageManager manager, bool root,
                           const char *expected)
 {
     testCount++;
-    const char *argv[PACKAGE_COMMAND_MAX];
+    const char *argv[PACKAGE_COMMAND_OVERHEAD + 1];
+    const char *packages[] = {"git"};
     char message[256];
     char command[512];
-    if (!packageInstallCommand(manager, "git", root, argv, message,
+    if (!packageInstallCommand(manager, packages, 1, root, argv, message,
                                sizeof message)) {
         TEST_FAIL("package: %s%s: unexpected error: %s",
                   packageManagerName(manager), root ? " as root" : "", message);
@@ -42,9 +43,10 @@ static void expectError(PackageManager manager, bool root,
                         const char *expected)
 {
     testCount++;
-    const char *argv[PACKAGE_COMMAND_MAX];
+    const char *argv[PACKAGE_COMMAND_OVERHEAD + 1];
+    const char *packages[] = {"git"};
     char message[256] = "";
-    if (packageInstallCommand(manager, "git", root, argv, message,
+    if (packageInstallCommand(manager, packages, 1, root, argv, message,
                               sizeof message)) {
         TEST_FAIL("package: %s%s: expected an error",
                   packageManagerName(manager), root ? " as root" : "");
@@ -57,7 +59,7 @@ static void expectError(PackageManager manager, bool root,
 
 static void testQueries(void)
 {
-    const char *argv[PACKAGE_COMMAND_MAX];
+    const char *argv[PACKAGE_COMMAND_OVERHEAD + 1];
     char command[512];
 
     testCount++;
@@ -142,6 +144,57 @@ static void testSystems(void)
 
 void runPackageTests(void)
 {
+    const char *many[64];
+    const char *largeArgv[PACKAGE_COMMAND_OVERHEAD + 64];
+    for (size_t i = 0; i < 64; i++) {
+        many[i] = "git";
+    }
+    const char *packages[] = {"git", "curl", "jq"};
+    const char *argv[PACKAGE_COMMAND_OVERHEAD + 3];
+    char message[256];
+    char command[512];
+    static const struct {
+        PackageManager manager;
+        const char *expected;
+    } batches[] = {
+        {PACKAGE_MANAGER_PACMAN, "sudo pacman -S --needed --noconfirm git curl jq"},
+        {PACKAGE_MANAGER_DNF, "sudo dnf install -y git curl jq"},
+        {PACKAGE_MANAGER_BREW, "brew install git curl jq"},
+    };
+    for (size_t i = 0; i < sizeof batches / sizeof batches[0]; i++) {
+        testCount++;
+        if (!packageInstallCommand(batches[i].manager, packages, 3, false,
+                                   argv, message, sizeof message) ||
+            strcmp(joinCommand(argv, command, sizeof command),
+                   batches[i].expected) != 0) {
+            TEST_FAIL("package: unexpected batched %s command",
+                      packageManagerName(batches[i].manager));
+        }
+    }
+    testCount++;
+    if (!packageInstallCommand(PACKAGE_MANAGER_APT, many, 64, true,
+                               largeArgv, message, sizeof message) ||
+        largeArgv[3] != many[0] || largeArgv[66] != many[63] ||
+        largeArgv[67] != NULL) {
+        TEST_FAIL("package: large package list was truncated");
+    }
+    testCount++;
+    if (!packageInstallCommand(PACKAGE_MANAGER_APT, packages, 3, false,
+                               argv, message, sizeof message) ||
+        strcmp(joinCommand(argv, command, sizeof command),
+               "sudo apt-get install -y git curl jq") != 0) {
+        TEST_FAIL("package: unexpected batched apt command");
+    }
+    testCount++;
+    if (packageInstallCommand(PACKAGE_MANAGER_WINGET, packages, 3, false,
+                              argv, message, sizeof message)) {
+        TEST_FAIL("package: winget must reject several IDs per command");
+    }
+    testCount++;
+    if (packageInstallCommand(PACKAGE_MANAGER_APT, packages, 0, false,
+                              argv, message, sizeof message)) {
+        TEST_FAIL("package: empty package list must fail");
+    }
     testNames();
     testSystems();
     testQueries();

@@ -550,7 +550,7 @@ static void testHover(void)
     expectContains("hover built-in", response(&s, 3), "result.contents.value",
                    "`/home/test`");
     expectContains("hover child package", response(&s, 4),
-                   "result.contents.value", "`tmux-child-tmux`");
+                   "result.contents.value", "`tmux`");
     expectContains("hover keyword", response(&s, 5), "result.contents.value",
                    "records the result as a fact");
     expectContains("hover bare unit", response(&s, 6), "result.contents.value",
@@ -589,7 +589,7 @@ static void testSymbols(void)
               16);
     expectCount("unit children", symbols, "result[2].children", 3);
     expectString("unit children", symbols, "result[2].children[2].detail",
-                 "tmux-child-tmux");
+                 "package");
     expectCount("workspace symbols", response(&s, 2), "result", 1);
     expectString("workspace symbols", response(&s, 2), "result[0].containerName",
                  "tmux");

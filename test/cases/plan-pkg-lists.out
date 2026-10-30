@@ -1,0 +1,6 @@
+unit curl
+  install package curl: sudo pacman -S --needed --noconfirm curl
+
+unit app
+  needs curl
+  install package tmux, tree-sitter-cli, jq: sudo pacman -S --needed --noconfirm tmux tree-sitter-cli jq

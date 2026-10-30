@@ -1,0 +1,5 @@
+# args: plan --package-manager winget
+# status: 0
+unit tools do
+  pkg "Git.Git", "jqlang.jq"
+end

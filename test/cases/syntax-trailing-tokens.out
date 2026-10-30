@@ -1,1 +1,1 @@
-test/cases/syntax-trailing-tokens.dotfile:3:7: error: expected end of line after unit name, found identifier `b`
+test/cases/syntax-trailing-tokens.dotfile:3:7: error: expected end of line after package list, found identifier `b`

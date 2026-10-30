@@ -90,7 +90,7 @@ static const CliCase cliCases[] = {
      NULL, NULL},
     {"repository manifest plan",
      {"plan", "--package-manager", "pacman", "-f", "manifest.dotfile", NULL},
-     0, "install package tmux (child unit tmux-child-tmux)", NULL, NULL},
+     0, "install package tmux:", NULL, NULL},
     {"unknown package manager", {"plan", "--package-manager", "yum", NULL}, 2,
      "dottr: error: unknown package manager 'yum'", NULL, NULL},
     {"missing package manager", {"plan", "--package-manager", NULL}, 2,

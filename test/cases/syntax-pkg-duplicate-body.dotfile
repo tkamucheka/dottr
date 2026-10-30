@@ -1,0 +1,5 @@
+# args: check
+# status: 2
+unit tools do
+  pkg git, "git"
+end

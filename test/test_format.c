@@ -118,6 +118,11 @@ static void expectFormat(const char *name, const char *source,
 
 static void testCases(void)
 {
+    expectFormat("package continuation", "pkg git, # git\n\n# more\ncurl,\njq\n",
+                 "pkg git, # git\n\n    # more\n    curl,\n    jq\n");
+    expectFormat("selector and needs continuation",
+                 "on apt,\npacman do\nunit tools do\nneeds git, # git\n# next\ncurl\nend\nend\n",
+                 "on apt,\n   pacman do\n  unit tools do\n    needs git, # git\n          # next\n          curl\n  end\nend\n");
     expectFormat("empty", "", "");
     expectFormat("blank lines only", "\n\n  \n", "");
     expectFormat("comments only", "  # a  \n\n\n# b", "# a\n\n# b\n");

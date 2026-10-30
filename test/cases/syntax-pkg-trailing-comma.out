@@ -1,0 +1,1 @@
+test/cases/syntax-pkg-trailing-comma.dotfile:4:1: error: expected unit name in `pkg`, found end of file

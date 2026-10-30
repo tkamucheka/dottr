@@ -1,0 +1,17 @@
+# args: plan --package-manager apt app
+# status: 0
+on apt, # manager
+
+   pacman do
+  pkg git,
+      # another dependency
+      curl
+  unit app do
+    needs git, # dependency
+
+          curl
+    pkg tmux,
+        "jq", # final item follows
+        ripgrep
+  end
+end

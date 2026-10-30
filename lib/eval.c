@@ -146,50 +146,59 @@ static void printCommand(const char **argv)
     }
 }
 
-static bool installPackage(Evaluator *ev, const char *package,
-                           const char *childName, int line, int column)
+static bool installPackages(Evaluator *ev, const Name *names, size_t count,
+                            int line, int column)
 {
-    const char *argv[PACKAGE_COMMAND_MAX];
+    /* winget accepts exactly one --id, and queries each package first. */
+    if (ev->manager == PACKAGE_MANAGER_WINGET && count > 1) {
+        for (size_t i = 0; i < count; i++) {
+            if (!installPackages(ev, &names[i], 1, line, column)) {
+                return false;
+            }
+        }
+        return true;
+    }
+    const char **packages = arenaAlloc(&ev->arena, count * sizeof *packages);
+    StrBuf label;
+    strBufInit(&label);
+    for (size_t i = 0; i < count; i++) {
+        packages[i] = names[i].text;
+        if (i > 0) {
+            strBufAppendStr(&label, ", ");
+        }
+        strBufAppendStr(&label, names[i].text);
+    }
+    const char *package = arenaStrdup(&ev->arena, label.data);
+    strBufFree(&label);
+    const char **argv = arenaAlloc(&ev->arena,
+            (count + PACKAGE_COMMAND_OVERHEAD) * sizeof *argv);
     char message[256];
-    if (!packageInstallCommand(ev->manager, package, hostIsRoot(), argv,
+    if (!packageInstallCommand(ev->manager, packages, count, hostIsRoot(), argv,
                                message, sizeof message)) {
         diagError(ev->diag, line, column, "cannot install package `%s`: %s",
                   package, message);
         return false;
     }
-
     if (ev->mode == EVAL_PLAN) {
-        printf("  install package %s", package);
-        if (childName) {
-            printf(" (child unit %s)", childName);
-        }
-        printf(": ");
+        printf("  install package %s: ", package);
         printCommand(argv);
         printf("\n");
         return true;
     }
-
-    const char *query[PACKAGE_COMMAND_MAX];
-    if (packageQueryCommand(ev->manager, package, query) &&
+    const char *query[PACKAGE_QUERY_COMMAND_MAX];
+    if (packageQueryCommand(ev->manager, packages[0], query) &&
         hostRunSilently((char *const *)query) == 0) {
         printf("  -> package %s is installed\n", package);
         return true;
     }
-
-    printf("  -> install package %s", package);
-    if (childName) {
-        printf(" (child unit %s)", childName);
-    }
-    printf("\n");
-
+    printf("  -> install package %s\n", package);
     int status = hostRun((char *const *)argv, NULL, 0);
     if (status == 0) {
         return true;
     }
     if (status < 0) {
         diagError(ev->diag, line, column,
-                  "package installation of `%s` could not be started",
-                  package);
+                  "package installation of `%s` could not be started", package);
     } else {
         diagError(ev->diag, line, column,
                   "package installation of `%s` failed with status %d",
@@ -390,9 +399,8 @@ static bool runStmt(Evaluator *ev, Scope *scope, const Stmt *stmt)
         return true;
 
     case STMT_PKG:
-        return installPackage(ev, stmt->as.pkg.package.text,
-                              stmt->as.pkg.childName, stmt->line,
-                              stmt->column);
+        return installPackages(ev, stmt->as.pkg.names, stmt->as.pkg.count,
+                               stmt->line, stmt->column);
 
     case STMT_CHECK: {
         const char *name = stmt->as.predicate.variable.text;
@@ -458,7 +466,7 @@ static bool runUnit(Evaluator *ev, const Unit *unit)
     }
 
     if (!unit->isBlock) {
-        return installPackage(ev, unit->name.text, NULL, unit->name.line,
+        return installPackages(ev, &unit->name, 1, unit->name.line,
                               unit->name.column);
     }
 
