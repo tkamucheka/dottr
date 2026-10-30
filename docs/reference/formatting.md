@@ -68,3 +68,10 @@ neither form.
 Rules 4 and 5 do not change the meaning of a manifest: blank lines are not
 significant outside shell blocks, and the indentation of the fence and
 whitespace-only lines are not part of a script.
+
+Comma-separated `pkg`, `needs`, and `on` lists retain their source line
+breaks. Continuation segments align with the first name: four columns after
+`pkg`, six after `needs`, and three after `on`, in addition to the enclosing
+block indentation. A trailing comment remains on its original segment;
+comment-only continuation lines use the same alignment. The formatter does
+not wrap or join lists and does not convert the rejected `pkg NAME do` form.

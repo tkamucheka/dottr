@@ -51,7 +51,7 @@ token         = keyword | IDENT | STRING | "=" | "," ;
 
 (* Words *)
 word          = ( letter | "_" ) { letter | digit | "_" } ;
-keyword       = "pkg" | "do" | "end" | "local" | "needs" | "check"
+keyword       = "pkg" | "unit" | "do" | "end" | "local" | "needs" | "check"
               | "create" | "apply" | "apply_if" | "apply_unless" | "else"
               | "shell" | "command" | "file" | "directory" | "on"
               | "link" ;
@@ -83,7 +83,8 @@ The following tokens are derived from the lexical structure rather than
 written directly:
 
 * **`NEWLINE`** is produced by the `line_end` of a `source_line` that contains
-  at least one token. Line ends of blank and comment-only lines produce no
+  at least one token, unless its last token is a comma. A comma continues
+  a list through following blank or comment-only lines. Line ends of blank and comment-only lines produce no
   token, so `NEWLINE` stands for one or more line terminators. A `NEWLINE` is
   also produced at the end of input if the last line containing a token has no
   line terminator.
@@ -97,15 +98,15 @@ written directly:
 
 ```ebnf
 manifest          = { top_item } EOF ;
-top_item          = pkg_decl | on_top ;
+top_item          = pkg_decl | unit_decl | on_top ;
 on_top            = "on" systems "do" NEWLINE { top_item } "end" NEWLINE ;
 
-pkg_decl          = "pkg" unit_name NEWLINE
-                  | "pkg" unit_name "do" NEWLINE { unit_stmt } "end" NEWLINE ;
+pkg_decl          = "pkg" unit_name { "," unit_name } NEWLINE ;
+unit_decl         = "unit" unit_name "do" NEWLINE { unit_stmt } "end" NEWLINE ;
 
 unit_stmt         = local_stmt
                   | needs_stmt
-                  | child_pkg
+                  | pkg_stmt
                   | check_stmt
                   | create_stmt
                   | link_stmt
@@ -117,7 +118,7 @@ on_unit           = "on" systems "do" NEWLINE { unit_stmt } "end" NEWLINE ;
 
 local_stmt        = "local" IDENT "=" STRING NEWLINE ;
 needs_stmt        = "needs" unit_name { "," unit_name } NEWLINE ;
-child_pkg         = "pkg" unit_name NEWLINE ;
+pkg_stmt          = "pkg" unit_name { "," unit_name } NEWLINE ;
 check_stmt        = "check" kind IDENT NEWLINE ;
 create_stmt       = "create" "directory" IDENT NEWLINE ;
 link_stmt         = "link" IDENT IDENT NEWLINE
@@ -163,8 +164,6 @@ Notes:
 
 * `shell` may appear only inside `apply`, `apply_if`, or `apply_unless`. A
   `shell` block elsewhere is a syntax error.
-* Block-form units cannot be nested. Only the bare form `pkg` may appear
-  inside a unit body.
 * `create` accepts only the kind `directory`.
 * The contextual `tree` modifier is present only before two variable names.
   It is not a keyword: `pkg tree` and `link tree TARGET` remain valid.
@@ -185,6 +184,8 @@ Syntactic constraints, reported by the parser:
 
 * A `unit_name` written as a `STRING` must be non-empty and must not contain
   an `INTERP`.
+* Package names within one `pkg` list are distinct, including equivalent
+  quoted and identifier spellings.
 * Each `IDENT` of `systems` names a system: `linux`, `macos`, `windows`,
   `pacman`, `apt`, `dnf`, `brew`, or `winget`.
 * A nested `on` block shares at least one system with the enclosing one.

@@ -1,6 +1,7 @@
 # libFuzzer dictionary of dottr manifest tokens.
 
 kw_pkg="pkg"
+kw_unit="unit"
 kw_do="do"
 kw_end="end"
 kw_local="local"

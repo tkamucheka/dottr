@@ -923,10 +923,11 @@ static const struct {
     const char *word;
     const char *text;
 } keywordDocs[] = {
-    {"pkg", "`pkg NAME` declares a unit that installs the package NAME with "
-            "the system package manager. `pkg NAME do ... end` declares a "
-            "unit satisfied by evaluating its body. Inside a unit, `pkg "
-            "NAME` installs a package as a child unit."},
+    {"pkg", "`pkg A, B` installs packages with the system package manager. "
+            "At top level it declares one package unit per name. Inside a "
+            "unit it installs packages without declaring units."},
+    {"unit", "`unit NAME do ... end` declares a unit satisfied by evaluating "
+             "its body. Units cannot be nested."},
     {"do", "Opens a block, closed by `end`."},
     {"end", "Closes the innermost block."},
     {"local", "`local NAME = \"STRING\"` binds a variable in the enclosing "
@@ -1784,11 +1785,13 @@ typedef struct {
     SpanList checked;
     /* Units declared at top level, collected over the whole document. */
     SpanList units;
+    /* Words of a list continued after a comma, including its keyword. */
+    SpanList pending;
 } Scan;
 
 /* Splits a line into words, string literals (as one word), and commas. */
 typedef struct {
-    Span words[16];
+    Span *words;
     size_t count;
     /* The line ends inside a string literal or a comment. */
     bool unfinished;
@@ -1797,6 +1800,7 @@ typedef struct {
 static void splitWords(const char *text, size_t length, Words *words)
 {
     words->count = 0;
+    words->words = NULL;
     words->unfinished = false;
     size_t i = 0;
     while (i < length) {
@@ -1828,9 +1832,9 @@ static void splitWords(const char *text, size_t length, Words *words)
         } else {
             i++;
         }
-        if (words->count < sizeof words->words / sizeof words->words[0]) {
-            words->words[words->count++] = (Span){&text[start], i - start};
-        }
+        words->words = xrealloc(words->words,
+                               (words->count + 1) * sizeof *words->words);
+        words->words[words->count++] = (Span){&text[start], i - start};
     }
 }
 
@@ -1893,10 +1897,27 @@ static void scanLine(Scan *scan, const char *text, size_t length)
     Words words;
     splitWords(text, length, &words);
     if (words.count == 0) {
+        free(words.words);
         return;
     }
+    /* A new statement also recovers context in an incomplete document. */
+    Span firstWord = words.words[0];
+    if (keywordDoc(firstWord.text, firstWord.length) &&
+        !spanIs(firstWord, "do")) {
+        scan->pending.count = 0;
+    }
+    for (size_t i = 0; i < words.count; i++) {
+        spanListAdd(&scan->pending, words.words[i]);
+    }
+    free(words.words);
+    words.words = scan->pending.items;
+    words.count = scan->pending.count;
     Span first = words.words[0];
     Span last = words.words[words.count - 1];
+    if (spanIs(last, ",")) {
+        return;
+    }
+    scan->pending.count = 0;
 
     if (spanIs(first, "end")) {
         if (scan->depth > 0 && scan->blocks[--scan->depth] == BLOCK_UNIT) {
@@ -1909,7 +1930,15 @@ static void scanLine(Scan *scan, const char *text, size_t length)
     bool topLevel = contextBlock(scan) == BLOCK_NONE;
     if ((spanIs(first, "pkg") || spanIs(first, "unit")) &&
         words.count >= 2 && topLevel) {
-        spanListAdd(&scan->units, unquote(words.words[1]));
+        if (spanIs(first, "unit")) {
+            spanListAdd(&scan->units, unquote(words.words[1]));
+        } else {
+            for (size_t i = 1; i < words.count; i++) {
+                if (!spanIs(words.words[i], ",")) {
+                    spanListAdd(&scan->units, unquote(words.words[i]));
+                }
+            }
+        }
     }
     if (inUnit(scan) && spanIs(first, "local") && words.count >= 2) {
         spanListAdd(&scan->locals, words.words[1]);
@@ -1942,6 +1971,7 @@ static void scanFree(Scan *scan)
     free(scan->locals.items);
     free(scan->checked.items);
     free(scan->units.items);
+    free(scan->pending.items);
 }
 
 typedef struct {
@@ -1978,7 +2008,7 @@ static const struct {
     const char *label;
     const char *body;
 } snippets[] = {
-    {"pkg", "pkg ${1:name} do\n\t$0\nend"},
+    {"unit", "unit ${1:name} do\n\t$0\nend"},
     {"apply", "apply do\n\tshell do\n\t\t```\n\t\t$0\n\t\t```\n\tend\nend"},
     {"apply_if", "apply_if ${1:NAME} do\n\t$0\nend"},
     {"apply_unless", "apply_unless ${1:NAME} do\n\t$0\nend"},
@@ -1988,8 +2018,8 @@ static const struct {
 
 static void addKeywords(ItemWriter *w, const Server *s, const Scan *scan)
 {
-    static const char *const file[] = {"pkg", "on", NULL};
-    static const char *const topLevelOn[] = {"pkg", "on", "end", NULL};
+    static const char *const file[] = {"pkg", "unit", "on", NULL};
+    static const char *const topLevelOn[] = {"pkg", "unit", "on", "end", NULL};
     static const char *const unit[] = {
         "local", "needs", "pkg", "check", "create", "link", "apply",
         "apply_if", "apply_unless", "on", "end", NULL};
@@ -2083,6 +2113,7 @@ static void handleCompletion(Server *s, const JsonValue *params, Reply *reply)
     }
 
     ItemWriter w = {&reply->result, true};
+    Words words = {0};
     strBufAppendChar(&reply->result, '[');
     if (scan.inRaw) {
         goto done;
@@ -2104,7 +2135,6 @@ static void handleCompletion(Server *s, const JsonValue *params, Reply *reply)
         }
     }
 
-    Words words;
     splitWords(prefix, prefixLength, &words);
     if (words.unfinished) {
         goto done;
@@ -2114,8 +2144,17 @@ static void handleCompletion(Server *s, const JsonValue *params, Reply *reply)
         words.count > 0) {
         words.count--;
     }
-    Span context[16];
+    if (words.count > 0 &&
+        keywordDoc(words.words[0].text, words.words[0].length)) {
+        scan.pending.count = 0;
+    }
+    Span *context = xmalloc((scan.pending.count + words.count) * sizeof *context);
     size_t count = 0;
+    for (size_t i = 0; i < scan.pending.count; i++) {
+        if (!spanIs(scan.pending.items[i], ",")) {
+            context[count++] = scan.pending.items[i];
+        }
+    }
     for (size_t i = 0; i < words.count; i++) {
         if (!spanIs(words.words[i], ",")) {
             context[count++] = words.words[i];
@@ -2195,8 +2234,10 @@ static void handleCompletion(Server *s, const JsonValue *params, Reply *reply)
                               spanIs(context[0], "apply_unless"))) {
         addVariables(&w, &scan.checked);
     }
+    free(context);
 
 done:
+    free(words.words);
     strBufAppendChar(&reply->result, ']');
     scanFree(&scan);
     scanFree(&whole);

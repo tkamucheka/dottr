@@ -924,8 +924,48 @@ static void testSymlink(void)
     sessionFree(&s);
 }
 
+static void testPackageLists(void)
+{
+    Session s;
+    sessionInit(&s);
+    sendInitialize(&s, "[\"utf-8\"]");
+    sendOpen(&s, "pkg git, curl\nunit tools do\n  pkg tmux, jq\nend\n");
+    sendf(&s, "{\"jsonrpc\":\"2.0\",\"id\":1,\"method\":"
+              "\"textDocument/documentSymbol\",\"params\":{\"textDocument\":"
+              "{\"uri\":\"" URI "\"}}}");
+    sendAt(&s, 2, "textDocument/hover", 1, 1, NULL);
+    run(&s);
+    expectCount("list symbols", response(&s, 1), "result", 3);
+    expectString("second package symbol", response(&s, 1), "result[1].name", "curl");
+    expectCount("list child symbols", response(&s, 1), "result[2].children", 2);
+    expectString("second child package", response(&s, 1), "result[2].children[1].name", "jq");
+    expectContains("unit keyword hover", response(&s, 2), "result.contents.value", "unit NAME do");
+    sessionFree(&s);
+
+    sessionInit(&s);
+    sendInitialize(&s, "[\"utf-8\"]");
+    sendOpen(&s, "pkg git,\n # packages\n curl, jq\nunit app do\n  needs git, # dependency\n\n # more\n  \nend\n");
+    sendAt(&s, 1, "textDocument/completion", 7, 2, NULL);
+    run(&s);
+    const char *const present[] = {"curl", "jq", NULL};
+    const char *const absent[] = {"git", "app", "local", NULL};
+    expectLabels("continued needs", at(response(&s, 1), "result"), present, absent);
+    sessionFree(&s);
+
+    sessionInit(&s);
+    sendInitialize(&s, "[\"utf-8\"]");
+    sendOpen(&s, "on apt, # select\n\n # systems\n \n");
+    sendAt(&s, 1, "textDocument/completion", 3, 1, NULL);
+    run(&s);
+    const char *const systems[] = {"pacman", "brew", NULL};
+    const char *const listed[] = {"apt", "unit", NULL};
+    expectLabels("continued on", at(response(&s, 1), "result"), systems, listed);
+    sessionFree(&s);
+}
+
 void runLspTests(void)
 {
+    testPackageLists();
     testLifecycle();
     testDiagnostics();
     testNavigation();

@@ -89,7 +89,7 @@ unit git
 unit tmux
   local TPM_DIR = "/home/user/.config/tmux/plugins/tpm"
   needs git
-  install package tmux (child unit tmux-child-tmux): sudo pacman -S --needed --noconfirm tmux
+  install package tmux: sudo pacman -S --needed --noconfirm tmux
   check directory TPM_DIR: /home/user/.config/tmux/plugins/tpm (currently false)
   apply_unless TPM_DIR
     shell (sh)

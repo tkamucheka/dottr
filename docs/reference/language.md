@@ -13,20 +13,21 @@ A manifest is a text file with the extension `.dotfile`.
 `dottr` reads `packages.dotfile` in the current directory unless `-f` names
 another file.
 
-The language is line-oriented: each statement occupies one line, and blank
-lines are ignored. `#` begins a comment that extends to the end of the line,
+The language is line-oriented. A comma continues a `pkg`, `needs`, or `on`
+list onto the next line; blank and comment-only lines may intervene.
+Otherwise a line end terminates the statement. `#` begins a comment that extends to the end of the line,
 except inside a string literal or a shell script.
 
 ## 2. Units
 
-A unit is declared with `pkg` in one of two forms.
+A unit is declared by a top-level package installation or a `unit` block.
 
 **Package units.** `pkg NAME` installs the package `NAME` with the system
-package manager:
+package manager. A comma-separated list declares one unit per package,
+equivalent to separate declarations:
 
 ```
-pkg git
-pkg "tree-sitter-cli"
+pkg git, curl, "tree-sitter-cli"
 ```
 
 A name that is not an identifier, such as one containing `-`, is written as a
@@ -34,11 +35,11 @@ string; such a string is not empty and contains no `@{...}` reference.
 `pkg tmux` and `pkg "tmux"` declare the same unit. Identifiers consist of
 ASCII letters, digits, and `_`, and do not begin with a digit.
 
-**Block units.** `pkg NAME do ... end` is satisfied by evaluating the
+**Block units.** `unit NAME do ... end` is satisfied by evaluating the
 statements of its body in order:
 
 ```
-pkg tmux do
+unit tmux do
   needs git
   pkg tmux
   local TPM_DIR = "@{dottr.env.home}/.config/tmux/plugins/tpm"
@@ -62,7 +63,7 @@ The statements of a block unit are:
 | Statement | Effect |
 |-----------|--------|
 | `needs A, B` | Requires the units `A` and `B` (Section 3). |
-| `pkg NAME` | Installs the package `NAME` (Section 2.1). |
+| `pkg A, B` | Installs the packages `A` and `B` (Section 2.1). |
 | `local NAME = "..."` | Binds a variable (Section 4). |
 | `check KIND NAME` | Records a fact about the host (Section 5). |
 | `create directory NAME` | Creates a directory (Section 5.2). |
@@ -100,10 +101,16 @@ does so in a shell block.
 between package managers, for example `fd` with pacman and `fd-find` with
 apt. `on` blocks select the name for each system (Section 7).
 
-Inside a block unit, `pkg NAME` installs the package `NAME` at that point of
-the body. It is commonly used to install the package that a block unit
-configures, as `pkg tmux` does above. Such a package is not a unit of its own:
-`needs tmux` in another unit refers to the top-level unit `tmux`.
+Inside a block unit, `pkg A, B` installs the packages at that point of the
+body without declaring units. Identifiers and quoted names may be mixed;
+repeating a name within one list is a syntax error. At top level, a name
+colliding with any other unit is a semantic error. `needs` refers only to
+declared top-level units.
+
+pacman, apt, dnf, and brew receive all names of a statement in one command.
+A failed batch reports the list and its exit status. On Windows, winget
+queries and installs each package separately because `--id` accepts one ID.
+`pkg NAME do` is rejected; block units use `unit NAME do`.
 
 ## 3. Dependencies
 
@@ -111,7 +118,7 @@ configures, as `pkg tmux` does above. Such a package is not a unit of its own:
 evaluated:
 
 ```
-pkg neovim do
+unit neovim do
   needs git, npm
   ...
 end
@@ -161,7 +168,7 @@ shell unchanged and read variables from the environment (Section 6.1).
 Keywords cannot be used as variable or unit identifiers:
 
 ```
-pkg  do  end  local  needs  check  create  apply  apply_if  apply_unless
+pkg  unit  do  end  local  needs  check  create  apply  apply_if  apply_unless
 else  shell  command  file  directory  on  link
 ```
 
@@ -217,7 +224,7 @@ fact.
 name local variables bound earlier in the unit:
 
 ```
-pkg editor_config do
+unit editor_config do
   local SOURCE = "@{dottr.env.home}/.dotfiles/.config/nvim"
   local CONFIG = "@{dottr.env.home}/.config"
   local TARGET = "@{CONFIG}/nvim"
@@ -245,7 +252,7 @@ directory into a real target directory, creating missing directories and
 linking each source file:
 
 ```
-pkg editor_files do
+unit editor_files do
   local SOURCE = "@{dottr.env.home}/.dotfiles/.config/nvim"
   local TARGET = "@{dottr.env.home}/.config/nvim"
   link tree SOURCE TARGET
@@ -271,7 +278,7 @@ patterns from the file named by a bound local. For example, deploy a whole
 repository using an existing Stow ignore file:
 
 ```
-pkg dotfiles do
+unit dotfiles do
   local SOURCE = "@{dottr.env.home}/.dotfiles"
   local TARGET = "@{dottr.env.home}"
   local RULES = "@{SOURCE}/.stow-local-ignore"
@@ -448,7 +455,7 @@ with its package manager. An `on` block selects its contents for the systems
 it names:
 
 ```
-pkg fd do
+unit fd do
   on pacman, dnf, brew do
     pkg fd
   end
@@ -483,7 +490,7 @@ on macos do
   pkg rectangle
 end
 
-pkg tpm do
+unit tpm do
   needs git
   on linux, macos do
     local TPM_DIR = "@{dottr.env.home}/.config/tmux/plugins/tpm"

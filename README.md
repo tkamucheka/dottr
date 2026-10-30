@@ -13,7 +13,7 @@ changes.
 pkg git
 pkg tmux
 
-pkg tpm do
+unit tpm do
   needs git, tmux
 
   local TPM_DIR = "@{dottr.env.home}/.config/tmux/plugins/tpm"
