@@ -429,8 +429,11 @@ static bool runStmt(Evaluator *ev, Scope *scope, const Stmt *stmt)
     case STMT_SYMLINK: {
         const char *source = lookupLocal(scope, stmt->as.symlink.source.text);
         const char *target = lookupLocal(scope, stmt->as.symlink.target.text);
+        const char *ignore = stmt->as.symlink.ignore.text
+                                 ? lookupLocal(scope, stmt->as.symlink.ignore.text)
+                                 : NULL;
         char message[512];
-        if (!deploySymlink(source, target, stmt->as.symlink.tree, plan,
+        if (!deploySymlink(source, target, stmt->as.symlink.tree, ignore, plan,
                            message, sizeof message)) {
             diagError(ev->diag, stmt->line, stmt->column, "%s", message);
             return false;

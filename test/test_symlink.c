@@ -86,7 +86,7 @@ static void expectDeployment(Filesystem *fs, const char *source,
 {
     testCount++;
     char message[512] = "";
-    bool result = deploySymlink(path(fs, source), path(fs, target), tree, plan,
+    bool result = deploySymlink(path(fs, source), path(fs, target), tree, NULL, plan,
                                 message, sizeof message);
     if (result != success || (diagnostic && !strstr(message, diagnostic))) {
         TEST_FAIL("symlink %s -> %s: expected %s (%s), got %s (%s)", source,
@@ -204,8 +204,10 @@ void runSymlinkTests(void)
     expectDeployment(&fs, "source", "directory-link", false, false, true, NULL);
     expectDeployment(&fs, "source", "directory-link", false, false, true, NULL);
     expectKind(&fs, "directory-link", HOST_PATH_SYMLINK);
-    expectDeployment(&fs, "source", "directory-link", true, false, false,
-                     "conflicts");
+    expectDeployment(&fs, "source", "directory-link", true, false, true, NULL);
+    rawLink(&fs, "source/sub", "different-directory-link");
+    expectDeployment(&fs, "source", "different-directory-link", true, false,
+                     false, "conflicts");
     expectDeployment(&fs, "source/a", "directory-link/injected", false, false,
                      false, "parent");
     expectDeployment(&fs, "source", "directory-link/injected", true, false,
@@ -223,6 +225,11 @@ void runSymlinkTests(void)
     writeFile(&fs, "tree/unrelated", "retain");
     expectDeployment(&fs, "source", "tree", true, false, true, NULL);
     expectContents(&fs, "tree/unrelated", "retain");
+    directory(&fs, "folded-target");
+    rawLink(&fs, "source/sub", "folded-target/sub");
+    expectDeployment(&fs, "source", "folded-target", true, false, true, NULL);
+    expectKind(&fs, "folded-target/sub", HOST_PATH_SYMLINK);
+    expectContents(&fs, "folded-target/sub/b", "nested");
     expectDeployment(&fs, "source", "deep/parent/tree", true, false, true,
                      NULL);
     expectContents(&fs, "deep/parent/tree/sub/b", "nested");
@@ -235,11 +242,46 @@ void runSymlinkTests(void)
     expectContents(&fs, "conflict/cycle", "preserved");
     expectDeployment(&fs, "source", "source/inside", true, false, false,
                      "overlap");
-    expectDeployment(&fs, "source/sub", "source", true, false, false,
-                     "overlap");
+    expectDeployment(&fs, "source/sub", "source", true, false, true, NULL);
+    expectContents(&fs, "source/b", "nested");
     expectDeployment(&fs, "source", "source", true, false, false, "same path");
     expectDeployment(&fs, "source/a", "source/a", false, false, false,
                      "same path");
+
+    /* A cloned dotfiles repository may live inside its target home. */
+    directory(&fs, "home/.dotfiles/.config/editor");
+    writeFile(&fs, "home/.dotfiles/.config/editor/config", "whole repository");
+    writeFile(&fs, "home/.dotfiles/.zshrc", "shell");
+    expectDeployment(&fs, "home/.dotfiles", "home", true, true, true, NULL);
+    expectKind(&fs, "home/.config", HOST_PATH_MISSING);
+    expectDeployment(&fs, "home/.dotfiles", "home", true, false, true, NULL);
+    expectContents(&fs, "home/.config/editor/config", "whole repository");
+    expectDeployment(&fs, "home/.dotfiles", "home", true, false, true, NULL);
+    expectContents(&fs, "home/.dotfiles/.zshrc", "shell");
+
+    directory(&fs, "guard/.dotfiles/.dotfiles");
+    writeFile(&fs, "guard/.dotfiles/payload", "preserve source");
+    expectDeployment(&fs, "guard/.dotfiles", "guard", true, false, false,
+                     "own source");
+    expectKind(&fs, "guard/payload", HOST_PATH_MISSING);
+    expectContents(&fs, "guard/.dotfiles/payload", "preserve source");
+
+    directory(&fs, "ignored/.dotfiles/.git");
+    directory(&fs, "ignored/.dotfiles/.config/editor");
+    writeFile(&fs, "ignored/.dotfiles/.git/HEAD", "metadata");
+    writeFile(&fs, "ignored/.dotfiles/.config/editor/config", "configuration");
+    writeFile(&fs, "ignored/.dotfiles/.stow-local-ignore", "\\.git\n^/packages.*\n");
+    writeFile(&fs, "ignored/.dotfiles/packages.dotfile", "manifest");
+    testCount++;
+    if (!deploySymlink(path(&fs, "ignored/.dotfiles"), path(&fs, "ignored"),
+                        true, path(&fs, "ignored/.dotfiles/.stow-local-ignore"),
+                        false, message, sizeof message)) {
+        TEST_FAIL("whole repository with ignore rules: %s", message);
+    }
+    expectKind(&fs, "ignored/.git", HOST_PATH_MISSING);
+    expectKind(&fs, "ignored/.stow-local-ignore", HOST_PATH_MISSING);
+    expectKind(&fs, "ignored/packages.dotfile", HOST_PATH_MISSING);
+    expectContents(&fs, "ignored/.config/editor/config", "configuration");
 
 #ifndef _WIN32
     testCount++;
@@ -265,7 +307,7 @@ void runSymlinkTests(void)
     testCount++;
     const char *relative = "./test/cases/apply-empty.dotfile";
     const char *destination = path(&fs, "relative-source");
-    if (!deploySymlink(relative, destination, false, false, message,
+    if (!deploySymlink(relative, destination, false, NULL, false, message,
                        sizeof message)) {
         TEST_FAIL("symlink relative source: %s", message);
     } else {

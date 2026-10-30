@@ -68,6 +68,7 @@ The statements of a block unit are:
 | `create directory NAME` | Creates a directory (Section 5.2). |
 | `link SOURCE TARGET` | Creates a symbolic link (Section 5.3). |
 | `link tree SOURCE TARGET` | Links a directory's files recursively (Section 5.3). |
+| `link tree SOURCE TARGET ignore RULES` | Links a tree using an ignore file (Section 5.3). |
 | `apply do ... end` | Runs actions (Section 6). |
 | `apply_if NAME do ... [else ...] end` | Runs actions if a fact is true (Section 6). |
 | `apply_unless NAME do ... end` | Runs actions if a fact is false (Section 6). |
@@ -235,7 +236,9 @@ An existing symbolic link whose normalized destination is the requested
 source is left unchanged. Existing files, directories, and links to other
 paths are conflicts. Dottr reports an error without replacing, adopting,
 backing up, or deleting them. Target ancestor directories must be real
-directories, not symbolic links or Windows junctions.
+directories. Directory links that already point to the requested source
+subtree are retained in tree mode without traversing them; other directory
+links and Windows junctions are conflicts.
 
 `link tree SOURCE TARGET` instead merges the contents of a real source
 directory into a real target directory, creating missing directories and
@@ -252,14 +255,46 @@ end
 Source directory symlinks are linked as leaves; they are not traversed.
 Existing target directories are reused, and unrelated target files are
 retained. Empty source directories create real empty target directories.
-The source and target trees must not overlap. Entries are processed in
+Existing matching directory symlinks, such as those left by Stow's tree
+folding, are retained without unfolding or writing through them. Their
+contents remain exposed by that existing directory link.
+The target may contain the source repository, allowing a clone at
+`$HOME/.dotfiles` to be deployed into `$HOME`. A target inside the source,
+or a mapped destination that would write into the source itself, is refused.
+Entries are processed in
 lexical order, and dottr checks the whole tree for conflicts before the first
 write. Filesystem errors or concurrent changes during application can still
 leave earlier successful operations in place; deployment is not transactional.
 
-No files are excluded implicitly. Declare the source subtrees to deploy;
-linking an entire repository tree also includes its metadata. Removed source
-files do not cause old target links to be removed automatically.
+No files are excluded implicitly. An optional `ignore RULES` reads exclusion
+patterns from the file named by a bound local. For example, deploy a whole
+repository using an existing Stow ignore file:
+
+```
+pkg dotfiles do
+  local SOURCE = "@{dottr.env.home}/.dotfiles"
+  local TARGET = "@{dottr.env.home}"
+  local RULES = "@{SOURCE}/.stow-local-ignore"
+  link tree SOURCE TARGET ignore RULES
+end
+```
+
+Ignore files contain one expression per line. Blank lines and comments
+beginning with an unescaped `#` are omitted. Expressions without `/` match
+the complete basename; expressions containing `/` match complete subpaths
+of the source-relative path prefixed by `/`. This follows
+[Stow's ignore matching conventions](https://www.gnu.org/software/stow/manual/html_node/Types-And-Syntax-Of-Ignore-Lists.html).
+The selected ignore file is itself omitted if it is inside the source tree.
+Ignored directories are not traversed, and ignored target entries are left
+unchanged.
+
+The portable matcher supports literal bytes, escaped punctuation, `.`,
+`^`, `$`, and the `*`, `+`, and `?` quantifiers. Character classes, grouping,
+alternation, counted repetition, and backreferences are unsupported and
+produce a diagnostic with the rule file and line before any writes occur.
+Patterns are not Git ignore globs. No external matcher or Stow process runs.
+No default ignore file is searched for; the manifest selects one explicitly.
+Removed source files do not cause old target links to be removed automatically.
 
 Paths are normalized to absolute paths relative to dottr's working directory,
 as shell actions are. `.` and `..` components are normalized lexically.
@@ -281,6 +316,8 @@ it may be supplied by a preceding package or shell action during `apply`.
 Similarly, missing parents are allowed in a plan, since preceding
 `create directory` statements are not executed by planning. Application
 requires those sources and parents to exist when the statement is evaluated.
+An ignore file must exist and parse when the source tree exists; a missing
+source is deferred by planning as above.
 
 On Windows, dottr uses native symbolic links for files and directories;
 junctions and copies are not substituted. Creating links requires Windows

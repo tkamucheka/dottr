@@ -555,8 +555,12 @@ static void buildIndex(Document *doc)
                 break;
             case STMT_SYMLINK: {
                 const Name *names[] = {&stmt->as.symlink.source,
-                                       &stmt->as.symlink.target};
-                for (size_t j = 0; j < 2; j++) {
+                                       &stmt->as.symlink.target,
+                                       &stmt->as.symlink.ignore};
+                for (size_t j = 0; j < 3; j++) {
+                    if (!names[j]->text) {
+                        continue;
+                    }
                     addName(doc, OCC_VAR_REF, names[j], unit,
                             findLocalOn(unit, names[j]->text, stmt->systems), stmt);
                 }
@@ -937,10 +941,15 @@ static const struct {
     {"link", "`link SOURCE TARGET` creates a symbolic link at TARGET "
                 "to SOURCE. `link tree SOURCE TARGET` links files recursively "
                 "into real target directories. Operands name local variables. "
-                "Matching links are retained; conflicting entries are errors."},
+                "An optional `ignore RULES` names a local containing the path "
+                "of an ignore file. Matching links are retained; conflicting "
+                "entries are errors."},
     {"tree", "In `link tree SOURCE TARGET`, recursively deploy the source "
-             "directory's files. Source directory links remain leaves; target "
-             "directory links are refused."},
+             "directory's files. Source directory links remain leaves; matching "
+             "target directory links are retained without traversal."},
+    {"ignore", "In `link tree SOURCE TARGET ignore RULES`, RULES names a local "
+               "containing the path of an ignore file. The file is read before "
+               "deployment and is not itself linked."},
     {"apply", "`apply do ... end` runs its shell blocks."},
     {"apply_if", "`apply_if NAME do ... [else ...] end` runs the first "
                  "branch if the fact recorded by `check ... NAME` is true, "
@@ -1219,7 +1228,15 @@ static const Token *keywordAt(const Document *doc, size_t offset)
                     doc->tokens.items[i - 1].kind == TOK_SYMLINK &&
                     i + 2 < doc->tokens.count &&
                     doc->tokens.items[i + 2].kind == TOK_IDENT;
-        if (token->kind < TOK_PKG && !tree) {
+        bool ignore = token->kind == TOK_IDENT && token->length == 6 &&
+                      memcmp(token->text, "ignore", 6) == 0 && i >= 4 &&
+                      doc->tokens.items[i - 4].kind == TOK_SYMLINK &&
+                      doc->tokens.items[i - 3].kind == TOK_IDENT &&
+                      doc->tokens.items[i - 3].length == 4 &&
+                      memcmp(doc->tokens.items[i - 3].text, "tree", 4) == 0 &&
+                      i + 1 < doc->tokens.count &&
+                      doc->tokens.items[i + 1].kind == TOK_IDENT;
+        if (token->kind < TOK_PKG && !tree && !ignore) {
             continue;
         }
         size_t start = offsetAt(doc, token->line, token->column);
@@ -2155,6 +2172,10 @@ static void handleCompletion(Server *s, const JsonValue *params, Reply *reply)
             addItem(&w, "tree", 4, COMPLETION_KEYWORD, "recursive deployment");
         }
         if (count < (tree ? 4 : 3)) {
+            addVariables(&w, &scan.locals);
+        } else if (tree && count == 4) {
+            addItem(&w, "ignore", 6, COMPLETION_KEYWORD, "ignore file");
+        } else if (tree && count == 5 && spanIs(context[4], "ignore")) {
             addVariables(&w, &scan.locals);
         }
     } else if (count == 1 && (spanIs(context[0], "apply_if") ||

@@ -519,6 +519,18 @@ static bool parseStmt(Parser *p, const Unit *unit, Stmt *stmt)
             !parseVariable(p, &stmt->as.symlink.target, "after source variable")) {
             return false;
         }
+        if (at(p, TOK_IDENT) && peek(p)->length == 6 &&
+            memcmp(peek(p)->text, "ignore", 6) == 0) {
+            const Token *ignore = advance(p);
+            if (!stmt->as.symlink.tree) {
+                errorAt(p, ignore, "`ignore` requires `link tree`");
+                return false;
+            }
+            if (!parseVariable(p, &stmt->as.symlink.ignore,
+                                "after `ignore`")) {
+                return false;
+            }
+        }
         return expect(p, TOK_NEWLINE, "after target variable");
 
     case TOK_CHECK:

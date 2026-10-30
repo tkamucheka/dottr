@@ -207,8 +207,12 @@ static void analyzeUnitBody(Analyzer *an, const Unit *unit)
 
         case STMT_SYMLINK: {
             const Name *names[] = {&stmt->as.symlink.source,
-                                   &stmt->as.symlink.target};
-            for (size_t j = 0; j < 2; j++) {
+                                   &stmt->as.symlink.target,
+                                   &stmt->as.symlink.ignore};
+            for (size_t j = 0; j < 3; j++) {
+                if (!names[j]->text) {
+                    continue;
+                }
                 if (!nameSetHas(&locals, names[j]->text)) {
                     reportUnbound(an, unit, names[j]->text, names[j]->line,
                                   names[j]->column);

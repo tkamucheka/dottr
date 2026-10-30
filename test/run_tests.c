@@ -574,6 +574,7 @@ int main(int argc, char **argv)
     runLspTests();
     runPackageTests();
     runSymlinkTests();
+    runIgnoreTests();
     runCliCases();
     runFormatWriteTest(false);
     runFormatWriteTest(true);

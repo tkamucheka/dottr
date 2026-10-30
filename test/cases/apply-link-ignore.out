@@ -1,0 +1,19 @@
+==> unit source
+  -> create directory CONFIG: $HOME/.dotfiles/.config/editor
+  -> shell (sh), line 9
+==> unit config
+  -> directory $HOME (unchanged)
+  -> directory $HOME/.config (create)
+  -> directory $HOME/.config/editor (create)
+  -> link $HOME/.config/editor/settings -> $HOME/.dotfiles/.config/editor/settings (create)
+  -> link $HOME/.zshrc -> $HOME/.dotfiles/.zshrc (create)
+  -> directory $HOME (unchanged)
+  -> directory $HOME/.config (unchanged)
+  -> directory $HOME/.config/editor (unchanged)
+  -> link $HOME/.config/editor/settings -> $HOME/.dotfiles/.config/editor/settings (unchanged)
+  -> link $HOME/.zshrc -> $HOME/.dotfiles/.zshrc (unchanged)
+  -> shell (sh), line 36
+local readme
+metadata
+configuration
+summary: 2 satisfied, 0 failed, 0 skipped

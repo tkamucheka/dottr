@@ -120,8 +120,11 @@ needs_stmt        = "needs" unit_name { "," unit_name } NEWLINE ;
 child_pkg         = "pkg" unit_name NEWLINE ;
 check_stmt        = "check" kind IDENT NEWLINE ;
 create_stmt       = "create" "directory" IDENT NEWLINE ;
-link_stmt         = "link" [ tree_modifier ] IDENT IDENT NEWLINE ;
+link_stmt         = "link" IDENT IDENT NEWLINE
+                  | "link" tree_modifier IDENT IDENT
+                    [ ignore_modifier IDENT ] NEWLINE ;
 tree_modifier     = IDENT ; (* exactly the word tree *)
+ignore_modifier   = IDENT ; (* exactly the word ignore *)
 
 apply_stmt        = "apply" "do" NEWLINE { action_stmt } "end" NEWLINE ;
 apply_if_stmt     = "apply_if" IDENT "do" NEWLINE { action_stmt }
@@ -165,6 +168,8 @@ Notes:
 * `create` accepts only the kind `directory`.
 * The contextual `tree` modifier is present only before two variable names.
   It is not a keyword: `pkg tree` and `link tree TARGET` remain valid.
+* The contextual `ignore` modifier follows the target in tree mode only;
+  its operand is a previously bound variable naming an ignore file.
 
 ## 4. Constraints Not Expressed by the Grammar
 

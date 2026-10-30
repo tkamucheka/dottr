@@ -6,6 +6,7 @@
 
 /* Plans or applies a link statement; planning performs no filesystem writes. */
 bool deploySymlink(const char *source, const char *target, bool tree,
-                   bool planOnly, char *message, size_t messageSize);
+                   const char *ignoreFile, bool planOnly, char *message,
+                   size_t messageSize);
 
 #endif

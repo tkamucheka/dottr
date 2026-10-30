@@ -26,6 +26,7 @@ kw_file="file"
 kw_directory="directory"
 kw_link="link"
 kw_tree="tree"
+kw_ignore="ignore"
 
 fence="```"
 fence_sh="```sh"

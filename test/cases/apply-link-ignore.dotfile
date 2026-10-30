@@ -1,0 +1,47 @@
+# args: apply
+# status: 0
+# os: linux, macos
+pkg source do
+  local ROOT = "@{dottr.env.home}/.dotfiles"
+  local CONFIG = "@{ROOT}/.config/editor"
+  create directory CONFIG
+  apply do
+    shell do
+      ```
+      mkdir -p "$ROOT/.git"
+      printf 'metadata\n' > "$ROOT/.git/HEAD"
+      printf 'configuration\n' > "$CONFIG/settings"
+      printf 'shell\n' > "$ROOT/.zshrc"
+      printf 'manifest\n' > "$ROOT/packages.dotfile"
+      printf 'repository readme\n' > "$ROOT/README.md"
+      printf 'local readme\n' > "$HOME/README.md"
+      cat > "$ROOT/.stow-local-ignore" <<'RULES'
+      \.git
+      ^/packages.*
+      ^/README.*
+      RULES
+      ```
+    end
+  end
+end
+
+pkg config do
+  needs source
+  local SOURCE = "@{dottr.env.home}/.dotfiles"
+  local TARGET = "@{dottr.env.home}"
+  local RULES = "@{SOURCE}/.stow-local-ignore"
+  link tree SOURCE TARGET ignore RULES
+  link tree SOURCE TARGET ignore RULES
+  apply do
+    shell do
+      ```
+      test ! -e "$HOME/.git"
+      test ! -e "$HOME/packages.dotfile"
+      test ! -e "$HOME/.stow-local-ignore"
+      test -L "$HOME/.config/editor/settings"
+      test -L "$HOME/.zshrc"
+      cat "$HOME/README.md" "$SOURCE/.git/HEAD" "$HOME/.config/editor/settings"
+      ```
+    end
+  end
+end

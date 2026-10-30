@@ -1,0 +1,1 @@
+test/cases/sema-link-ignore.dotfile:6:34: error: undefined variable `RULES`

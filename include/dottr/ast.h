@@ -84,6 +84,7 @@ typedef struct {
         struct {
             Name source;
             Name target;
+            Name ignore;
             bool tree;
         } symlink;
         /*

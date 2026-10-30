@@ -5,6 +5,7 @@
 #include <string.h>
 
 #include "dottr/host.h"
+#include "dottr/ignore.h"
 #include "dottr/util.h"
 
 typedef struct {
@@ -21,6 +22,9 @@ typedef struct {
     size_t capacity;
     char *message;
     size_t messageSize;
+    const char *sourceBase;
+    const char *sourceRoot;
+    IgnoreList ignored;
 } LinkPlan;
 
 static char *parentPath(const char *path)
@@ -98,6 +102,11 @@ static bool inspectParents(LinkPlan *plan, const char *target, bool tree)
 static bool addOperation(LinkPlan *plan, const char *source, const char *target,
                          bool directory)
 {
+    if (plan->sourceRoot && pathWithin(plan->sourceRoot, target)) {
+        snprintf(plan->message, plan->messageSize,
+                 "tree mapping enters its own source at %s", target);
+        return false;
+    }
     HostPathKind kind;
     if (!hostPathKind(target, &kind, plan->message, plan->messageSize)) {
         return false;
@@ -127,6 +136,14 @@ static bool addOperation(LinkPlan *plan, const char *source, const char *target,
 
 static bool collectTree(LinkPlan *plan, const char *source, const char *target)
 {
+    HostPathKind targetKind;
+    if (!hostPathKind(target, &targetKind, plan->message, plan->messageSize)) {
+        return false;
+    }
+    /* Retain a directory link already pointing to this complete subtree. */
+    if (targetKind == HOST_PATH_SYMLINK) {
+        return addOperation(plan, source, target, false);
+    }
     if (!addOperation(plan, source, target, true)) {
         return false;
     }
@@ -141,6 +158,12 @@ static bool collectTree(LinkPlan *plan, const char *source, const char *target)
         if (ok) {
             const char *from = joinPath(plan, source, names[i]);
             const char *to = joinPath(plan, target, names[i]);
+            const char *relative = from + strlen(plan->sourceBase) + 1;
+            if ((plan->ignored.file && hostPathsEqual(from, plan->ignored.file)) ||
+                ignoresPath(&plan->ignored, relative)) {
+                free(names[i]);
+                continue;
+            }
             HostPathKind kind;
             ok = hostPathKind(from, &kind, plan->message, plan->messageSize);
             if (ok && kind == HOST_PATH_DIRECTORY) {
@@ -181,7 +204,8 @@ static bool collectParents(LinkPlan *plan, const char *target)
 }
 
 bool deploySymlink(const char *source, const char *target, bool tree,
-                   bool planOnly, char *message, size_t messageSize)
+                   const char *ignoreFile, bool planOnly, char *message,
+                   size_t messageSize)
 {
     LinkPlan plan = {0};
     arenaInit(&plan.arena);
@@ -190,6 +214,10 @@ bool deploySymlink(const char *source, const char *target, bool tree,
     char *from = hostAbsolutePath(source, message, messageSize);
     char *to = hostAbsolutePath(target, message, messageSize);
     bool ok = from && to;
+    if (ok && ignoreFile && !tree) {
+        snprintf(message, messageSize, "an ignore file requires tree mode");
+        ok = false;
+    }
     HostPathKind kind = HOST_PATH_MISSING;
     if (ok) {
         ok = hostPathKind(from, &kind, message, messageSize);
@@ -220,13 +248,21 @@ bool deploySymlink(const char *source, const char *target, bool tree,
     if (ok && tree) {
         char *canonical = hostCanonicalPath(from, message, messageSize);
         ok = canonical != NULL;
-        if (ok && (pathWithin(canonical, to) || pathWithin(to, canonical))) {
+        if (ok && pathWithin(canonical, to)) {
             snprintf(message, messageSize,
                      "symlink source and target trees overlap: %s and %s", from,
                      to);
             ok = false;
         }
+        if (ok) {
+            plan.sourceBase = from;
+            plan.sourceRoot = arenaStrdup(&plan.arena, canonical);
+        }
         free(canonical);
+        if (ok && ignoreFile) {
+            ok = loadIgnoreList(&plan.arena, ignoreFile, &plan.ignored,
+                                 message, messageSize);
+        }
         if (ok) {
             ok = collectParents(&plan, to) && collectTree(&plan, from, to);
         }

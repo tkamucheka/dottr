@@ -17,7 +17,7 @@ setup of supported editors is described in [Editors](editors.md).
 | References | All uses of a unit or a variable. |
 | Rename | Units and variables, with all their uses. A unit name that is not an identifier is written as a string. A variable name must be an identifier that is not a keyword, not an environment variable protected by the language, and not already bound in the unit. |
 | Hover | Units (kind, line, and dependencies), child packages, variables (declaration, current value, and `check` statements), `@{dottr.env.home}` (with its value), the systems of `on` blocks, and keywords. Units declared for some systems only list them. |
-| Completion | Statement keywords valid in the enclosing block; unit names after `needs`; predicate kinds after `check`; variables after `check KIND`, `create directory`, and in both operands of `link`; the contextual `tree` modifier after `link`; checked variables after `apply_if` and `apply_unless`; variables and `dottr.env.home` after `@{`; systems after `on`. Block snippets are offered to clients that support snippets. |
+| Completion | Statement keywords valid in the enclosing block; unit names after `needs`; predicate kinds after `check`; variables after `check KIND`, `create directory`, in link operands, and after `ignore`; contextual `tree` and `ignore` link modifiers; checked variables after `apply_if` and `apply_unless`; variables and `dottr.env.home` after `@{`; systems after `on`. Block snippets are offered to clients that support snippets. |
 
 A unit or variable declared once per system, in `on` blocks, is one symbol
 for references and rename; go to definition leads to the declaration for the

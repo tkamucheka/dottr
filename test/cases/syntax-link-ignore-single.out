@@ -1,0 +1,1 @@
+test/cases/syntax-link-ignore-single.dotfile:4:22: error: `ignore` requires `link tree`
