@@ -961,6 +961,16 @@ static void testPackageLists(void)
     const char *const listed[] = {"apt", "unit", NULL};
     expectLabels("continued on", at(response(&s, 1), "result"), systems, listed);
     sessionFree(&s);
+
+    sessionInit(&s);
+    sendInitialize(&s, "[\"utf-8\"]");
+    sendOpen(&s, "pkg git, tree, ignore\nunit app do\n  needs git,\n        tree,\n        \nend\n");
+    sendAt(&s, 1, "textDocument/completion", 4, 8, NULL);
+    run(&s);
+    const char *const contextual[] = {"ignore", NULL};
+    const char *const given[] = {"tree", "git", "app", NULL};
+    expectLabels("contextual names in continuation", at(response(&s, 1), "result"), contextual, given);
+    sessionFree(&s);
 }
 
 void runLspTests(void)

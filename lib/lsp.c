@@ -1844,6 +1844,12 @@ static bool spanIs(Span span, const char *word)
            memcmp(span.text, word, span.length) == 0;
 }
 
+static bool startsStatement(Span word)
+{
+    return keywordDoc(word.text, word.length) && !spanIs(word, "tree") &&
+           !spanIs(word, "ignore") && !spanIs(word, "do");
+}
+
 /* The name of a word: a string literal without its quotes. */
 static Span unquote(Span span)
 {
@@ -1902,8 +1908,7 @@ static void scanLine(Scan *scan, const char *text, size_t length)
     }
     /* A new statement also recovers context in an incomplete document. */
     Span firstWord = words.words[0];
-    if (keywordDoc(firstWord.text, firstWord.length) &&
-        !spanIs(firstWord, "do")) {
+    if (startsStatement(firstWord)) {
         scan->pending.count = 0;
     }
     for (size_t i = 0; i < words.count; i++) {
@@ -2144,11 +2149,10 @@ static void handleCompletion(Server *s, const JsonValue *params, Reply *reply)
         words.count > 0) {
         words.count--;
     }
-    if (words.count > 0 &&
-        keywordDoc(words.words[0].text, words.words[0].length)) {
+    if (words.count > 0 && startsStatement(words.words[0])) {
         scan.pending.count = 0;
     }
-    Span *context = xmalloc((scan.pending.count + words.count) * sizeof *context);
+    Span *context = xmalloc((scan.pending.count + words.count + 1) * sizeof *context);
     size_t count = 0;
     for (size_t i = 0; i < scan.pending.count; i++) {
         if (!spanIs(scan.pending.items[i], ",")) {
