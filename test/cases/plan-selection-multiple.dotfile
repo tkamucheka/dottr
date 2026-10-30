@@ -1,4 +1,4 @@
-# args: plan d b
+# args: plan --package-manager pacman d b
 # status: 0
 pkg a
 unit b do
