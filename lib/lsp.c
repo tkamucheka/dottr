@@ -928,6 +928,9 @@ static const struct {
             "unit it installs packages without declaring units."},
     {"unit", "`unit NAME do ... end` declares a unit satisfied by evaluating "
              "its body. Units cannot be nested."},
+    {"systems", "`systems arch, debian` declares the manifest's supported "
+                "systems. It precedes every unit and `on` block. Checking "
+                "uses only these systems; plan and apply refuse other hosts."},
     {"do", "Opens a block, closed by `end`."},
     {"end", "Closes the innermost block."},
     {"local", "`local NAME = \"STRING\"` binds a variable in the enclosing "
@@ -962,9 +965,9 @@ static const struct {
     {"else", "Begins the branch of `apply_if` that runs when the fact is "
              "false."},
     {"on", "`on SYSTEM, ... do ... end` selects its contents for the "
-           "systems named: an operating system (`linux`, `macos`, "
-           "`windows`) or a package manager (`pacman`, `apt`, `dnf`, "
-           "`brew`, `winget`). It may contain units at top level, "
+           "systems named: `linux`, `arch`, `debian`, `fedora` "
+           "(also `redhat` or `rhel`), `macos`, or `windows`. "
+           "It may contain units at top level, "
            "statements in a unit, and `shell` blocks in `apply`."},
     {"shell", "`shell do`, a fenced script, and `end`. The info string of the "
               "fence names the interpreter: `sh`, `bash`, `zsh`, `pwsh`, or "
@@ -1106,27 +1109,29 @@ static void hoverUnit(StrBuf *text, const Document *doc, const Occurrence *o)
                          unit->name.line);
         strBufAppendChar(text, '.');
     }
-    if (unit->systems != SYSTEM_ALL) {
+    if (unit->systems != doc->manifest.systems) {
         char systems[96];
         describeSystems(unit->systems, systems, sizeof systems);
         strBufAppendStr(text, "\n\nExists on ");
         strBufAppendStr(text, systems);
         strBufAppendStr(text, " only.");
     }
-    (void)doc;
 }
 
-/* Hover text of an `on` selector at offset; false if there is none. */
+/* Hover text of an `on` or `systems` selector; false if there is none. */
 static bool hoverSelector(StrBuf *text, const Document *doc, size_t offset,
                           size_t *start, size_t *end)
 {
     if (!doc->parsed) {
         return false;
     }
-    for (size_t i = 0; i < doc->manifest.onCount; i++) {
-        const OnBlock *block = &doc->manifest.onBlocks[i];
-        for (size_t j = 0; j < block->selectorCount; j++) {
-            const Name *selector = &block->selectors[j];
+    for (size_t i = 0; i <= doc->manifest.onCount; i++) {
+        const Name *names = i == 0 ? doc->manifest.selectors :
+                doc->manifest.onBlocks[i - 1].selectors;
+        size_t count = i == 0 ? doc->manifest.selectorCount :
+                doc->manifest.onBlocks[i - 1].selectorCount;
+        for (size_t j = 0; j < count; j++) {
+            const Name *selector = &names[j];
             size_t first = offsetAt(doc, selector->line, selector->column);
             size_t last = first + strlen(selector->text);
             if (offset < first || offset > last) {
@@ -1144,10 +1149,16 @@ static bool hoverSelector(StrBuf *text, const Document *doc, size_t offset,
                 strBufAppendStr(text, "\n\nmacOS, with Homebrew.");
             } else if (systems == SYSTEM_WINDOWS) {
                 strBufAppendStr(text, "\n\nWindows, with winget.");
-            } else {
-                strBufAppendStr(text, "\n\nThe package manager ");
-                appendCode(text, selector->text, strlen(selector->text));
-                strBufAppendStr(text, ".");
+            } else if (systems == SYSTEM_ARCH) {
+                strBufAppendStr(text, "\n\nArch family, including Arch Linux, "
+                                      "Manjaro and EndeavourOS, using pacman.");
+            } else if (systems == SYSTEM_DEBIAN) {
+                strBufAppendStr(text, "\n\nDebian family, including Debian, "
+                                      "Ubuntu and Linux Mint, using apt.");
+            } else if (systems == SYSTEM_FEDORA) {
+                strBufAppendStr(text, "\n\nFedora/RHEL family, using dnf. "
+                                      "fedora, redhat and rhel are synonyms; "
+                                      "output uses fedora.");
             }
             return true;
         }
@@ -1787,6 +1798,9 @@ typedef struct {
     SpanList units;
     /* Words of a list continued after a comma, including its keyword. */
     SpanList pending;
+    SystemSet systems;
+    bool sawDeclaration;
+    bool started;
 } Scan;
 
 /* Splits a line into words, string literals (as one word), and commas. */
@@ -1842,6 +1856,17 @@ static bool spanIs(Span span, const char *word)
 {
     return span.length == strlen(word) &&
            memcmp(span.text, word, span.length) == 0;
+}
+
+static SystemSet spanSystem(Span span)
+{
+    char name[16];
+    if (span.length >= sizeof name) {
+        return 0;
+    }
+    memcpy(name, span.text, span.length);
+    name[span.length] = '\0';
+    return systemSelector(name);
 }
 
 static bool startsStatement(Span word)
@@ -1933,6 +1958,17 @@ static void scanLine(Scan *scan, const char *text, size_t length)
         return;
     }
     bool topLevel = contextBlock(scan) == BLOCK_NONE;
+    if (topLevel && spanIs(first, "systems") && !scan->started &&
+        !scan->sawDeclaration) {
+        scan->sawDeclaration = true;
+        for (size_t i = 1; i < words.count; i++) {
+            scan->systems |= spanSystem(words.words[i]);
+        }
+    }
+    if (topLevel && (spanIs(first, "pkg") || spanIs(first, "unit") ||
+                     spanIs(first, "on"))) {
+        scan->started = true;
+    }
     if ((spanIs(first, "pkg") || spanIs(first, "unit")) &&
         words.count >= 2 && topLevel) {
         if (spanIs(first, "unit")) {
@@ -2023,7 +2059,7 @@ static const struct {
 
 static void addKeywords(ItemWriter *w, const Server *s, const Scan *scan)
 {
-    static const char *const file[] = {"pkg", "unit", "on", NULL};
+    static const char *const file[] = {"systems", "pkg", "unit", "on", NULL};
     static const char *const topLevelOn[] = {"pkg", "unit", "on", "end", NULL};
     static const char *const unit[] = {
         "local", "needs", "pkg", "check", "create", "link", "apply",
@@ -2043,6 +2079,10 @@ static void addKeywords(ItemWriter *w, const Server *s, const Scan *scan)
     default: words = apply; break;
     }
     for (size_t i = 0; words[i]; i++) {
+        if (strcmp(words[i], "systems") == 0 &&
+            (scan->started || scan->sawDeclaration)) {
+            continue;
+        }
         addItem(w, words[i], strlen(words[i]), COMPLETION_KEYWORD, NULL);
         for (size_t j = 0; s->snippets && j < sizeof snippets / sizeof snippets[0];
              j++) {
@@ -2167,12 +2207,18 @@ static void handleCompletion(Server *s, const JsonValue *params, Reply *reply)
 
     if (count == 0) {
         addKeywords(&w, s, &scan);
-    } else if (spanIs(context[0], "on") && !spanIs(context[count - 1], "do")) {
+    } else if ((spanIs(context[0], "on") || spanIs(context[0], "systems")) &&
+               !spanIs(context[count - 1], "do")) {
         static const char *const selectors[] = {
             "linux", "arch", "debian", "fedora", "redhat", "rhel",
             "macos", "windows",
         };
         for (size_t i = 0; i < sizeof selectors / sizeof selectors[0]; i++) {
+            SystemSet allowed = whole.systems ? whole.systems : SYSTEM_ALL;
+            if (spanIs(context[0], "on") &&
+                !(systemSelector(selectors[i]) & allowed)) {
+                continue;
+            }
             bool listed = false;
             for (size_t j = 1; j < count; j++) {
                 listed = listed || spanIs(context[j], selectors[i]);

@@ -51,7 +51,7 @@ token         = keyword | IDENT | STRING | "=" | "," ;
 
 (* Words *)
 word          = ( letter | "_" ) { letter | digit | "_" } ;
-keyword       = "pkg" | "unit" | "do" | "end" | "local" | "needs" | "check"
+keyword       = "pkg" | "unit" | "systems" | "do" | "end" | "local" | "needs" | "check"
               | "create" | "apply" | "apply_if" | "apply_unless" | "else"
               | "shell" | "command" | "file" | "directory" | "on"
               | "link" ;
@@ -97,7 +97,8 @@ written directly:
 ## 3. Syntactic Grammar
 
 ```ebnf
-manifest          = { top_item } EOF ;
+manifest          = [ systems_decl ] { top_item } EOF ;
+systems_decl      = "systems" systems NEWLINE ;
 top_item          = pkg_decl | unit_decl | on_top ;
 on_top            = "on" systems "do" NEWLINE { top_item } "end" NEWLINE ;
 
@@ -186,9 +187,11 @@ Syntactic constraints, reported by the parser:
   an `INTERP`.
 * Package names within one `pkg` list are distinct, including equivalent
   quoted and identifier spellings.
-* Each `IDENT` of `systems` names a system: `linux`, `macos`, `windows`,
-  `pacman`, `apt`, `dnf`, `brew`, or `winget`.
-* A nested `on` block shares at least one system with the enclosing one.
+* Each `IDENT` of `systems` names a system: `linux`, `arch`, `debian`,
+  `fedora`, `redhat`, `rhel`, `macos`, or `windows`. The selectors `fedora`,
+  `redhat`, and `rhel` are synonyms; `fedora` is canonical in output.
+* An `on` block shares at least one system with its enclosing block and the
+  manifest's `systems` declaration, if present.
 
 Semantic constraints, reported before evaluation and described in
 [The Manifest Language](language.md). They apply to the manifest of each
@@ -196,6 +199,8 @@ system, which consists of the contents of the `on` blocks that apply on it
 (Section 7.1):
 
 * Unit names are unique (Section 2).
+* A block unit has at least one statement on each system on which it is
+  declared. A `needs` statement counts; package units are never empty.
 * Every `needs` names a declared unit, and dependencies are acyclic
   (Section 3).
 * A variable is bound at most once in a unit, and is not named after a

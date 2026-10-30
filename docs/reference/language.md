@@ -13,7 +13,7 @@ A manifest is a text file with the extension `.dotfile`.
 `dottr` reads `packages.dotfile` in the current directory unless `-f` names
 another file.
 
-The language is line-oriented. A comma continues a `pkg`, `needs`, or `on`
+The language is line-oriented. A comma continues a `pkg`, `needs`, `systems`, or `on`
 list onto the next line; blank and comment-only lines may intervene.
 Otherwise a line end terminates the statement. `#` begins a comment that extends to the end of the line,
 except inside a string literal or a shell script.
@@ -57,6 +57,9 @@ end
 A unit is *satisfied* if every statement of its body completes without error.
 Unit names are unique within a manifest, and units are declared only at the
 top level of the manifest; a block unit cannot contain another block unit.
+A block unit must contain at least one statement on each system on which it
+is declared. A `needs` statement alone is a valid grouping unit. Package
+units always have their installation statement.
 
 The statements of a block unit are:
 
@@ -168,7 +171,7 @@ shell unchanged and read variables from the environment (Section 6.1).
 Keywords cannot be used as variable or unit identifiers:
 
 ```
-pkg  unit  do  end  local  needs  check  create  apply  apply_if  apply_unless
+pkg  unit  systems  do  end  local  needs  check  create  apply  apply_if  apply_unless
 else  shell  command  file  directory  on  link
 ```
 
@@ -450,16 +453,15 @@ local NVIM_DIR = "@{dottr.env.home}/AppData/Local/nvim"
 
 ## 7. Systems
 
-A manifest can describe several systems: a system is an operating system
-with its package manager. An `on` block selects its contents for the systems
-it names:
+A manifest can describe distribution families and operating systems. An
+`on` block selects its contents for the systems it names:
 
 ```
 unit fd do
-  on pacman, dnf, brew do
+  on arch, fedora, macos do
     pkg fd
   end
-  on apt do
+  on debian do
     pkg "fd-find"
   end
   on windows do
@@ -468,18 +470,25 @@ unit fd do
 end
 ```
 
-| System | Operating system | Package manager |
-|--------|------------------|-----------------|
-| `pacman` | Linux | pacman |
-| `apt` | Linux | apt |
-| `dnf` | Linux | dnf |
-| `brew` | macOS | Homebrew |
-| `winget` | Windows | winget |
+| Selector | Package manager | Example distributions |
+|----------|-----------------|-----------------------|
+| `arch` | pacman | Arch Linux, EndeavourOS, Manjaro, CachyOS |
+| `debian` | apt | Debian, Ubuntu, Linux Mint, Pop!_OS |
+| `fedora`, `redhat`, `rhel` | dnf | Fedora, RHEL, CentOS Stream, Rocky Linux, AlmaLinux |
+| `macos` | Homebrew | macOS |
+| `windows` | winget | Windows |
 
-An `on` block names systems by package manager, as in the table, or by
-operating system: `linux` stands for `pacman`, `apt`, and `dnf`, `macos` for
-`brew`, and `windows` for `winget`. The block applies on every system it
-names.
+`linux` selects `arch`, `debian`, and `fedora`. The selectors `fedora`,
+`redhat`, and `rhel` are interchangeable; diagnostics use `fedora`.
+Selection is determined by the package manager detected on the host,
+without reading `/etc/os-release`. A new distribution using a supported
+manager needs no new selector. Package-manager selectors such as `on apt`
+are rejected with a suggested family replacement. The command-line option
+`--package-manager` still takes manager names.
+
+Selecting a single distribution within a family is not supported. A
+manifest can use `check`, such as `check command SNAP`, or a shell test to
+choose an action that depends on a particular host capability.
 
 `on` blocks may appear at the top level of the manifest, around units; in a
 unit, around its statements; and in `apply`, `apply_if`, and `apply_unless`,
@@ -529,9 +538,10 @@ contents of `on` blocks for other systems are not part of it. dottr applies
 the manifest of the host's system, which is selected by its package manager
 ([Command Line](command-line.md), Section 1.3).
 
-A manifest is valid if it is valid on every system. `dottr check` therefore
-reports an error that occurs on some systems only with the systems on which
-it occurs:
+A manifest is valid if it is valid on every declared system, or every
+supported system when there is no `systems` declaration. `dottr check`
+annotates an error with its systems only when it occurs on a proper subset
+of that scope:
 
 ```
 packages.dotfile:21:19: error: undefined variable `X` (on linux, macos)
@@ -544,6 +554,56 @@ Consequently:
 * A unit declared in an `on` block exists only on its systems, and only units
   on the same systems may need it.
 * A unit or variable may be declared once per system, as `TPM_DIR` is above.
+
+### 7.2 Declaring Manifest Systems
+
+An optional declaration precedes all units and `on` blocks:
+
+```
+systems arch, debian
+
+unit dotfiles do
+  local ROOT = "@{dottr.env.home}/.dotfiles"
+end
+```
+
+The declaration occurs at most once and takes the same selectors as `on`.
+Lists may continue after a comma, with intervening blank or comment-only
+lines. Without it the manifest supports every system. With it, the manifest
+behaves as though enclosed in an `on` block for the declared systems:
+statements and checking are restricted to that set. An `on` block with no
+overlap is an error; a partially overlapping selector, such as `on linux`
+within `systems arch, debian`, narrows to the shared systems.
+
+`plan` and `apply` refuse systems outside the declaration with exit status
+2, including systems selected through `--package-manager`:
+
+```
+dottr: error: packages.dotfile is for arch, debian; this host uses dnf (fedora)
+```
+
+### 7.3 Placement of System Conditions
+
+Place `on` around a unit when that unit exists only on those systems, for
+example an Arch-specific boot configuration. Other units may depend on it
+only where it exists. Place `on` inside a unit when its purpose is shared
+but its packages, dependencies, scripts, or installation method differ.
+
+A block unit that has no statements on some of its systems is an error;
+otherwise dependencies could succeed without the intended work:
+
+```
+unit ghostty do
+  on debian do
+    pkg ghostty
+  end
+end
+```
+
+This unit is empty on arch, fedora, macos, and windows. Declare the unit
+inside `on debian` instead, or provide statements for its other systems.
+Only systems within the manifest's declaration are considered. A unit
+containing only `needs` is a deliberate grouping and is valid.
 
 ## 8. Idempotence
 

@@ -52,15 +52,20 @@ Units are processed in dependency order (see
 does not declare, or declares only for other systems, is an error, and
 nothing is applied.
 
-If no package manager is found, the operating system selects the manifest,
-which requires that it does not distinguish between the package managers of
-the operating system; otherwise `--package-manager` must name one.
+If no package manager is found, the operating system's systems are
+intersected with the manifest's declaration. All remaining systems must
+select the same statements; otherwise `--package-manager` must name one.
+An empty intersection, or a detected or explicit manager outside the
+declaration, is refused with exit status 2 before any actions are performed.
+For example, `--package-manager dnf` selects `fedora`; the other mappings
+are pacman to `arch`, apt to `debian`, brew to `macos`, and winget to `windows`.
 
 ### 1.2 Validation
 
 Every command except `lsp` first validates the whole manifest, and stops at
 the first lexical or syntax error or after reporting all semantic errors.
-`check`, `plan`, and `apply` validate the manifest of every system, so that a
+`check`, `plan`, and `apply` validate every declared system, or every
+supported system in the absence of a declaration, so that a
 manifest checked on one system is valid on the others; an error that occurs
 on some systems only is followed by those systems, as in
 `(on linux, macos)`.

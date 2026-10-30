@@ -973,8 +973,71 @@ static void testPackageLists(void)
     sessionFree(&s);
 }
 
+static void testSystemFamilies(void)
+{
+    Session s;
+    sessionInit(&s);
+    sendInitialize(&s, "[\"utf-8\"]");
+    sendOpen(&s, "systems arch, rhel\npkg git\nunit files do\n  needs git\nend\n");
+    sendAt(&s, 1, "textDocument/hover", 0, 2, NULL);
+    sendAt(&s, 2, "textDocument/hover", 0, 15, NULL);
+    sendAt(&s, 3, "textDocument/hover", 2, 7, NULL);
+    run(&s);
+    expectCount("systems diagnostics", lastDiagnostics(&s), "params.diagnostics", 0);
+    expectContains("systems keyword hover", response(&s, 1), "result.contents.value", "supported systems");
+    expectContains("family synonym hover", response(&s, 2), "result.contents.value", "using dnf");
+    testCount++;
+    const char *hover = jsonString(at(response(&s, 3), "result.contents.value"));
+    if (!hover || strstr(hover, "Exists on")) {
+        TEST_FAIL("lsp: full-scope unit should not have an only-systems suffix");
+    }
+    sessionFree(&s);
+
+    sessionInit(&s);
+    sendInitialize(&s, "[\"utf-8\"]");
+    sendOpen(&s, "systems arch, rhel\n\non \n");
+    sendAt(&s, 1, "textDocument/completion", 2, 3, NULL);
+    sendAt(&s, 2, "textDocument/completion", 1, 0, NULL);
+    run(&s);
+    const char *const allowed[] = {"linux", "arch", "fedora", "redhat", "rhel", NULL};
+    const char *const excluded[] = {"debian", "macos", "windows", "pacman", NULL};
+    expectLabels("declaration limits on", at(response(&s, 1), "result"), allowed, excluded);
+    const char *const top[] = {"pkg", "unit", "on", NULL};
+    const char *const declared[] = {"systems", NULL};
+    expectLabels("no second declaration", at(response(&s, 2), "result"), top, declared);
+    sessionFree(&s);
+
+    sessionInit(&s);
+    sendInitialize(&s, "[\"utf-8\"]");
+    sendOpen(&s, "\n");
+    sendAt(&s, 1, "textDocument/completion", 0, 0, NULL);
+    run(&s);
+    expectLabels("initial declaration keyword", at(response(&s, 1), "result"), declared, NULL);
+    sessionFree(&s);
+
+    sessionInit(&s);
+    sendInitialize(&s, "[\"utf-8\"]");
+    sendOpen(&s, "systems \n");
+    sendAt(&s, 1, "textDocument/completion", 0, 8, NULL);
+    run(&s);
+    const char *const all[] = {"arch", "debian", "fedora", "redhat", "rhel", "macos", "windows", NULL};
+    expectLabels("systems selector completion", at(response(&s, 1), "result"), all, NULL);
+    sessionFree(&s);
+
+    sessionInit(&s);
+    sendInitialize(&s, "[\"utf-8\"]");
+    sendOpen(&s, "systems arch,\n # family\n debian\n\non \n");
+    sendAt(&s, 1, "textDocument/completion", 4, 3, NULL);
+    run(&s);
+    const char *const continued[] = {"arch", "debian", "linux", NULL};
+    const char *const outside[] = {"fedora", "redhat", "rhel", "macos", "windows", NULL};
+    expectLabels("continued systems scope", at(response(&s, 1), "result"), continued, outside);
+    sessionFree(&s);
+}
+
 void runLspTests(void)
 {
+    testSystemFamilies();
     testPackageLists();
     testLifecycle();
     testDiagnostics();
