@@ -79,7 +79,25 @@
 ## Repository Hygiene
 * Do not create temporary files in the project tree. Use the system temp
   directory (or an agent scratch directory) and clean up afterwards.
-* Do not create markdown files outside
-  `docs/reference/`, other than README files, unless explicitly asked.
-  No summaries, notes, reports, or changelogs written as standalone files;
-  report results in the conversation instead.
+* Do not create markdown files outside `docs/reference/`, `docs/plans/`,
+  and `docs/supplemental/`, other than README files, unless explicitly
+  asked. No summaries, notes, reports, or changelogs written as standalone
+  files; report results in the conversation instead.
+
+## Planning and Design Documents
+* Check `docs/plans/` for existing feature plans.
+* Create new plans in `docs/plans/<new-design>.md` before implementing major
+  changes.
+* Update the plan tracker `docs/plans/README.md` after finishing a design.
+* Put sketches and design documents in `docs/supplemental/`.
+
+## Privacy
+* `docs/plans/` and `docs/supplemental/` are private. They are listed in
+  `.git/info/exclude` and are never committed; other private files under
+  `docs/` are excluded the same way.
+* Never stage or commit `docs/plans/` or `docs/supplemental/`. Before
+  `git add -A`, check that neither is staged.
+* Never cite these documents in tracked files or commit messages: no paths
+  (`docs/plans/...`), no section references to them, and no references to
+  design discussions recorded in them. Code comments, README files, reference
+  documentation, and commit messages stand on their own.
