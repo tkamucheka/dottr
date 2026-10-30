@@ -1,0 +1,1 @@
+test/cases/systems-after-on.dotfile:6:1: error: `systems` must precede the first unit

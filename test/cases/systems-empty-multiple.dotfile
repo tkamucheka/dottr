@@ -1,0 +1,10 @@
+# args: check
+# status: 2
+unit terminal do
+  on debian do
+    pkg ghostty
+  end
+  on rhel do
+    pkg ghostty
+  end
+end

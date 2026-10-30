@@ -1,1 +1,2 @@
 test/cases/sema-duplicate-unit.dotfile:4:6: error: duplicate unit `git`; first declared on line 3
+test/cases/sema-duplicate-unit.dotfile:4:6: error: unit `git` has no statements on linux, macos, windows; add a statement to the unit

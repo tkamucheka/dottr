@@ -1,0 +1,5 @@
+# args: check
+# status: 2
+systems arch
+unit empty do
+end

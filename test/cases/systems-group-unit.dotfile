@@ -1,0 +1,7 @@
+# args: check
+# status: 0
+systems arch
+pkg git
+unit tools do
+  needs git
+end

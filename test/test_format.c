@@ -118,6 +118,9 @@ static void expectFormat(const char *name, const char *source,
 
 static void testCases(void)
 {
+    expectFormat("systems declaration",
+                 "systems arch, # first\n# second\ndebian\n\npkg git\n",
+                 "systems arch, # first\n        # second\n        debian\n\npkg git\n");
     expectFormat("package continuation", "pkg git, # git\n\n# more\ncurl,\njq\n",
                  "pkg git, # git\n\n    # more\n    curl,\n    jq\n");
     expectFormat("selector and needs continuation",

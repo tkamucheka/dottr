@@ -1,0 +1,8 @@
+# args: check
+# status: 0
+systems debian
+unit terminal do
+  on debian do
+    pkg ghostty
+  end
+end

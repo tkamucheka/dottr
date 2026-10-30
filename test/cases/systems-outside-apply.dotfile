@@ -1,0 +1,5 @@
+# args: apply --package-manager apt
+# status: 2
+# os: linux
+systems arch
+pkg git

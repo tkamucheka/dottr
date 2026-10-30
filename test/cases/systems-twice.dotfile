@@ -1,0 +1,4 @@
+# args: check
+# status: 2
+systems arch
+systems debian

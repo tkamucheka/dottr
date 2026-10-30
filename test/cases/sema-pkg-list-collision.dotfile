@@ -2,4 +2,5 @@
 # status: 2
 pkg git, curl
 unit curl do
+  pkg curl
 end

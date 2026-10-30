@@ -1,0 +1,9 @@
+# args: check
+# status: 2
+systems arch, redhat
+unit files do
+  on arch do
+    local DIR = "dir"
+  end
+  check directory DIR
+end

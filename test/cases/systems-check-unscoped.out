@@ -1,0 +1,1 @@
+test/cases/systems-check-unscoped.dotfile:7:19: error: undefined variable `DIR` (on debian, fedora, macos, windows)

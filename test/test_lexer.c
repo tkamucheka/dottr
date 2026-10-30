@@ -169,6 +169,10 @@ static void testStatements(void)
 static void testNewlines(void)
 {
     LexResult r;
+    lexText("systems arch,\n # other\n debian\n", &r);
+    EXPECT_KINDS("systems declaration", &r, TOK_SYSTEMS, TOK_IDENT,
+                 TOK_COMMA, TOK_IDENT, TOK_NEWLINE, TOK_EOF);
+    lexFree(&r);
     lexText("pkg a, # trailing\r\n\n# between\n b,\n c\n", &r);
     EXPECT_KINDS("comma continuation", &r, TOK_PKG, TOK_IDENT, TOK_COMMA,
                  TOK_IDENT, TOK_COMMA, TOK_IDENT, TOK_NEWLINE, TOK_EOF);

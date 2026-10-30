@@ -234,6 +234,14 @@ int main(int argc, char **argv)
     }
     char systemName[96];
     SystemSet systems = packageManagerSystems(manager);
+    if (systems && !(systems & manifest.systems)) {
+        char declared[96];
+        describeSystems(manifest.systems, declared, sizeof declared);
+        describeSystems(systems, systemName, sizeof systemName);
+        fprintf(stderr, "dottr: error: %s is for %s; this host uses %s (%s)\n",
+                path, declared, packageManagerName(manager), systemName);
+        goto done;
+    }
     if (systems == 0) {
         /*
          * Without a package manager, the operating system selects the view,
@@ -245,10 +253,18 @@ int main(int argc, char **argv)
         case OS_WINDOWS: systems = SYSTEM_WINDOWS; break;
         case OS_OTHER: systems = SYSTEM_ALL; break;
         }
+        systems &= manifest.systems;
+        if (!systems) {
+            char declared[96];
+            describeSystems(manifest.systems, declared, sizeof declared);
+            fprintf(stderr, "dottr: error: %s is for %s; this host is %s\n",
+                    path, declared, operatingSystemName(hostOperatingSystem()));
+            goto done;
+        }
         if (!viewsAgree(&manifest, systems)) {
             fprintf(stderr,
                     "dottr: error: no supported package manager was found, "
-                    "and %s selects statements by package manager; name one "
+                    "and %s selects statements by system family; name one "
                     "with --package-manager\n",
                     path);
             goto done;

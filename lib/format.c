@@ -218,7 +218,8 @@ static void printLines(StrBuf *out, const TokenList *tokens,
             appendCodeLine(out, tokens, line);
             if (lastKind == TOK_COMMA) {
                 if (!continuation) {
-                    continuation = firstKind == TOK_NEEDS ? 6 :
+                    continuation = firstKind == TOK_SYSTEMS ? 8 :
+                                   firstKind == TOK_NEEDS ? 6 :
                                    firstKind == TOK_ON ? 3 : 4;
                 }
             } else {

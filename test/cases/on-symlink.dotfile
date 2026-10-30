@@ -1,5 +1,6 @@
 # args: check
 # status: 0
+systems arch, debian
 unit config do
   on arch do
     local SOURCE = "arch"

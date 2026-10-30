@@ -1,0 +1,6 @@
+# args: check
+# status: 2
+systems arch, debian
+unit files do
+  check directory DIR
+end

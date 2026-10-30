@@ -1,0 +1,1 @@
+test/cases/systems-alias-output.dotfile:8:19: error: undefined variable `DIR` (on fedora)

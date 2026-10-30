@@ -160,6 +160,46 @@ static bool parseVariable(Parser *p, Name *name, const char *context)
     return false;
 }
 
+static bool parseSelectors(Parser *p, const char *keyword, Name **names,
+                           size_t *count, SystemSet *selected)
+{
+    size_t capacity = 0;
+    for (;;) {
+        const Token *token = peek(p);
+        if (token->kind != TOK_IDENT) {
+            errorAt(p, token,
+                    "expected a system after `%s` (%s), found %s",
+                    keyword, SYSTEM_SELECTORS, describe(p, token));
+            return false;
+        }
+        Name selector = nameFrom(p, token);
+        SystemSet systems = systemSelector(selector.text);
+        if (systems == 0) {
+            const char *replacement = systemSelectorReplacement(selector.text);
+            if (replacement) {
+                errorAt(p, token,
+                        "`%s %s` selects by package manager; use `%s %s`",
+                        keyword, selector.text, keyword, replacement);
+                return false;
+            }
+            errorAt(p, token, "unknown system `%s`; expected one of %s",
+                    selector.text, SYSTEM_SELECTORS);
+            return false;
+        }
+        advance(p);
+        *names = arenaGrow(p->arena, *names, *count,
+                           &capacity, sizeof **names);
+        (*names)[(*count)++] = selector;
+        *selected |= systems;
+        if (!at(p, TOK_COMMA)) {
+            break;
+        }
+        advance(p);
+    }
+
+    return true;
+}
+
 /*
  * Parses `on SELECTOR, ... do NEWLINE`, records the block, and narrows the
  * systems of the parser to those of the block. Stores the index of the block
@@ -169,41 +209,11 @@ static bool beginOn(Parser *p, size_t *index, SystemSet *outer)
 {
     const Token *on = advance(p);
     OnBlock block = {on->line, on->column, 0, 0, NULL, 0, 0};
-    size_t capacity = 0;
     SystemSet selected = 0;
 
-    for (;;) {
-        const Token *token = peek(p);
-        if (token->kind != TOK_IDENT) {
-            errorAt(p, token,
-                    "expected a system after `on` (%s), found %s",
-                    SYSTEM_SELECTORS, describe(p, token));
-            return false;
-        }
-        Name selector = nameFrom(p, token);
-        SystemSet systems = systemSelector(selector.text);
-        if (systems == 0) {
-            const char *replacement = systemSelectorReplacement(selector.text);
-            if (replacement) {
-                errorAt(p, token,
-                        "`on %s` selects by package manager; use `on %s`",
-                        selector.text, replacement);
-                return false;
-            }
-            errorAt(p, token, "unknown system `%s`; expected one of %s",
-                    selector.text, SYSTEM_SELECTORS);
-            return false;
-        }
-        advance(p);
-        block.selectors = arenaGrow(p->arena, block.selectors,
-                                    block.selectorCount, &capacity,
-                                    sizeof *block.selectors);
-        block.selectors[block.selectorCount++] = selector;
-        selected |= systems;
-        if (!at(p, TOK_COMMA)) {
-            break;
-        }
-        advance(p);
+    if (!parseSelectors(p, "on", &block.selectors, &block.selectorCount,
+                        &selected)) {
+        return false;
     }
 
     if (!expect(p, TOK_DO, "after the systems of `on`") ||
@@ -215,10 +225,15 @@ static bool beginOn(Parser *p, size_t *index, SystemSet *outer)
     if (block.systems == 0) {
         char enclosing[96];
         describeSystems(p->systems, enclosing, sizeof enclosing);
-        errorAt(p, on,
-                "this `on` block applies on no system: it is inside a block "
-                "for %s",
-                enclosing);
+        if (p->manifest->selectorCount && p->systems == p->manifest->systems) {
+            char requested[96];
+            describeSystems(selected, requested, sizeof requested);
+            errorAt(p, on, "`on %s`: the manifest is for %s", requested, enclosing);
+        } else {
+            errorAt(p, on,
+                    "this `on` block applies on no system: it is inside a block "
+                    "for %s", enclosing);
+        }
         return false;
     }
 
@@ -711,6 +726,24 @@ static bool parseTopLevel(Parser *p, const Token *on)
                 return false;
             }
             break;
+        case TOK_SYSTEMS: {
+            if (on || manifest->selectorCount || manifest->count || manifest->onCount) {
+                errorAt(p, token, "`systems` must precede the first unit");
+                return false;
+            }
+            advance(p);
+            SystemSet selected = 0;
+            if (!parseSelectors(p, "systems", &manifest->selectors,
+                                &manifest->selectorCount, &selected) ||
+                !expect(p, TOK_NEWLINE, "after the systems declaration")) {
+                return false;
+            }
+            manifest->systemsLine = token->line;
+            manifest->systemsColumn = token->column;
+            manifest->systems = selected;
+            p->systems = selected;
+            continue;
+        }
         case TOK_ON: {
             size_t index;
             SystemSet outer;
@@ -753,7 +786,7 @@ static bool parseTopLevel(Parser *p, const Token *on)
         default:
             break;
         }
-        errorAt(p, token, "expected `pkg`, `unit`, or `on` at top level, found %s",
+        errorAt(p, token, "expected `systems`, `pkg`, `unit`, or `on` at top level, found %s",
                 describe(p, token));
         return false;
     }
@@ -763,6 +796,7 @@ bool parseManifest(Arena *arena, const TokenList *tokens, Manifest *manifest,
                    Diag *diag)
 {
     memset(manifest, 0, sizeof *manifest);
+    manifest->systems = SYSTEM_ALL;
     Parser p = {
         .arena = arena,
         .diag = diag,

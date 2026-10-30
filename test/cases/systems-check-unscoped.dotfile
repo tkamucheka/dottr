@@ -1,0 +1,8 @@
+# args: check
+# status: 2
+unit files do
+  on arch do
+    local DIR = "files"
+  end
+  check directory DIR
+end

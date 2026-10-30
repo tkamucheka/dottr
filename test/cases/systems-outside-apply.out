@@ -1,0 +1,1 @@
+dottr: error: test/cases/systems-outside-apply.dotfile is for arch; this host uses apt (debian)

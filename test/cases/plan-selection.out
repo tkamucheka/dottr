@@ -1,4 +1,5 @@
 unit a
+  install package a: sudo pacman -S --needed --noconfirm a
 
 unit c
   needs a

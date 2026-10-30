@@ -1,0 +1,1 @@
+test/cases/systems-error-scope.dotfile:5:19: error: undefined variable `DIR`

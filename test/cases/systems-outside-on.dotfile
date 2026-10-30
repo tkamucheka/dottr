@@ -1,0 +1,6 @@
+# args: check
+# status: 2
+systems arch, debian
+on macos do
+  pkg git
+end

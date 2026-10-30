@@ -1,0 +1,1 @@
+test/cases/systems-outside-on.dotfile:4:1: error: `on macos`: the manifest is for arch, debian

@@ -135,6 +135,12 @@ typedef struct {
 typedef struct {
     Unit *units;
     size_t count;
+    /* Manifest scope; SYSTEM_ALL when no declaration was written. */
+    SystemSet systems;
+    Name *selectors;
+    size_t selectorCount;
+    int systemsLine;
+    int systemsColumn;
     /* Every `on` block, in source order. */
     OnBlock *onBlocks;
     size_t onCount;

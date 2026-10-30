@@ -1,0 +1,1 @@
+test/cases/systems-empty-unit.dotfile:3:6: error: unit `terminal` has no statements on arch, fedora, macos, windows; declare it inside `on debian` instead

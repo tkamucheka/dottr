@@ -3,10 +3,8 @@
 unit c do
   needs b
 end
-unit a do
-end
+pkg a
 unit b do
   needs a
 end
-unit d do
-end
+pkg d

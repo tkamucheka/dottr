@@ -1,0 +1,6 @@
+# args: plan --package-manager apt
+# status: 0
+systems arch, debian
+on linux do
+  pkg git
+end

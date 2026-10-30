@@ -1,0 +1,4 @@
+# args: plan --package-manager dnf
+# status: 2
+systems arch, debian
+pkg git

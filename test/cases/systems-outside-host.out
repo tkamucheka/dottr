@@ -1,0 +1,1 @@
+dottr: error: test/cases/systems-outside-host.dotfile is for arch, debian; this host uses dnf (fedora)

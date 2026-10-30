@@ -1,0 +1,1 @@
+test/cases/systems-removed-selector.dotfile:3:9: error: `systems apt` selects by package manager; use `systems debian`

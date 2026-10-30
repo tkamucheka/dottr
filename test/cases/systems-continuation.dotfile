@@ -1,0 +1,8 @@
+# args: fmt
+# status: 0
+systems arch, # first
+
+# second
+ debian
+
+pkg git

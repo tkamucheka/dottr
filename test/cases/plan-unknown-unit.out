@@ -1,1 +1,1 @@
-dottr: error: test/cases/plan-unknown-unit.dotfile declares no unit named 'nope'
+test/cases/plan-unknown-unit.dotfile:3:6: error: unit `a` has no statements on linux, macos, windows; add a statement to the unit

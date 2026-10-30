@@ -1,4 +1,5 @@
 unit a
+  install package a: sudo pacman -S --needed --noconfirm a
 
 unit b
   needs a
@@ -7,3 +8,4 @@ unit c
   needs b
 
 unit d
+  install package d: sudo pacman -S --needed --noconfirm d

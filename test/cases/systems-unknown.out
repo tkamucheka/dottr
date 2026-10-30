@@ -1,0 +1,1 @@
+test/cases/systems-unknown.dotfile:3:9: error: unknown system `ubuntu`; expected one of linux, arch, debian, fedora, redhat, rhel, macos, windows

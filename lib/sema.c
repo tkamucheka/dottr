@@ -393,6 +393,7 @@ static void buildView(Arena *arena, const Manifest *manifest,
                       SystemSet systems, Manifest *view)
 {
     memset(view, 0, sizeof *view);
+    view->systems = systems;
     view->units = arenaAlloc(arena, (manifest->count + 1) * sizeof *view->units);
 
     for (size_t i = 0; i < manifest->count; i++) {
@@ -494,13 +495,28 @@ static const SystemSet everySystem[] = {
 
 bool analyzeManifest(Arena *arena, Manifest *manifest, Diag *diag)
 {
-    if (manifest->onCount == 0) {
-        return analyzeView(arena, manifest, manifest, diag);
-    }
+    int errorsBefore = diag->errorCount;
+    SystemSet *empty = arenaAlloc(arena, (manifest->count + 1) * sizeof *empty);
 
     /* Every system sees its own view; each error is reported once. */
     DiagnosticCollector collector = {arena, NULL, 0, 0, 0};
     for (size_t i = 0; i < sizeof everySystem / sizeof everySystem[0]; i++) {
+        if (!(everySystem[i] & manifest->systems)) {
+            continue;
+        }
+        for (size_t u = 0; u < manifest->count; u++) {
+            const Unit *unit = &manifest->units[u];
+            if (!unit->isBlock || !(unit->systems & everySystem[i])) {
+                continue;
+            }
+            bool hasStatement = false;
+            for (size_t s = 0; s < unit->stmtCount; s++) {
+                hasStatement |= (unit->stmts[s].systems & everySystem[i]) != 0;
+            }
+            if (!hasStatement) {
+                empty[u] |= everySystem[i];
+            }
+        }
         Manifest view;
         buildView(arena, manifest, everySystem[i], &view);
         Diag viewDiag;
@@ -509,13 +525,13 @@ bool analyzeManifest(Arena *arena, Manifest *manifest, Diag *diag)
         analyzeView(arena, &view, manifest, &viewDiag);
     }
 
-    if (collector.count > 0) {
+    if (collector.count > 0 && manifest->onCount > 0) {
         qsort(collector.items, collector.count, sizeof *collector.items,
               compareDiagnostics);
     }
     for (size_t i = 0; i < collector.count; i++) {
         const SystemDiagnostic *item = &collector.items[i];
-        if (item->systems == SYSTEM_ALL) {
+        if (item->systems == manifest->systems) {
             diagError(diag, item->line, item->column, "%s", item->message);
         } else {
             char systems[96];
@@ -524,7 +540,27 @@ bool analyzeManifest(Arena *arena, Manifest *manifest, Diag *diag)
                       item->message, systems);
         }
     }
-    return collector.count == 0;
+    for (size_t u = 0; u < manifest->count; u++) {
+        if (!empty[u]) {
+            continue;
+        }
+        const Unit *unit = &manifest->units[u];
+        char missing[96];
+        describeSystems(empty[u], missing, sizeof missing);
+        SystemSet active = unit->systems & ~empty[u];
+        if (active) {
+            char systems[96];
+            describeSystems(active, systems, sizeof systems);
+            diagError(diag, unit->name.line, unit->name.column,
+                      "unit `%s` has no statements on %s; declare it inside "
+                      "`on %s` instead", unit->name.text, missing, systems);
+        } else {
+            diagError(diag, unit->name.line, unit->name.column,
+                      "unit `%s` has no statements on %s; add a statement "
+                      "to the unit", unit->name.text, missing);
+        }
+    }
+    return diag->errorCount == errorsBefore;
 }
 
 bool viewsAgree(const Manifest *manifest, SystemSet systems)

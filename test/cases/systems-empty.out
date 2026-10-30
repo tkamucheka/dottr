@@ -1,0 +1,1 @@
+test/cases/systems-empty.dotfile:3:8: error: expected a system after `systems` (linux, arch, debian, fedora, redhat, rhel, macos, windows), found end of line

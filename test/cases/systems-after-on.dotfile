@@ -1,0 +1,6 @@
+# args: check
+# status: 2
+on arch do
+  pkg git
+end
+systems arch

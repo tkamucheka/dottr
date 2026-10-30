@@ -1,0 +1,1 @@
+test/cases/systems-empty-all.dotfile:4:6: error: unit `empty` has no statements on arch; add a statement to the unit

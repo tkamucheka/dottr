@@ -1,0 +1,9 @@
+# args: check
+# status: 0
+systems arch, debian
+unit terminal do
+  local NAME = "terminal"
+  on debian do
+    pkg ghostty
+  end
+end

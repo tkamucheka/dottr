@@ -1,0 +1,1 @@
+test/cases/systems-empty-multiple.dotfile:3:6: error: unit `terminal` has no statements on arch, macos, windows; declare it inside `on debian, fedora` instead
