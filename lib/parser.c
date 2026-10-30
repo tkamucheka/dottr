@@ -226,9 +226,17 @@ static bool beginOn(Parser *p, size_t *index, SystemSet *outer)
         char enclosing[96];
         describeSystems(p->systems, enclosing, sizeof enclosing);
         if (p->manifest->selectorCount && p->systems == p->manifest->systems) {
-            char requested[96];
-            describeSystems(selected, requested, sizeof requested);
-            errorAt(p, on, "`on %s`: the manifest is for %s", requested, enclosing);
+            StrBuf requested;
+            strBufInit(&requested);
+            for (size_t i = 0; i < block.selectorCount; i++) {
+                if (i > 0) {
+                    strBufAppendStr(&requested, ", ");
+                }
+                strBufAppendStr(&requested, block.selectors[i].text);
+            }
+            errorAt(p, on, "`on %s`: the manifest is for %s",
+                    requested.data, enclosing);
+            strBufFree(&requested);
         } else {
             errorAt(p, on,
                     "this `on` block applies on no system: it is inside a block "

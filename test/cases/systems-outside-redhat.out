@@ -1,0 +1,1 @@
+test/cases/systems-outside-redhat.dotfile:4:1: error: `on redhat`: the manifest is for arch, debian

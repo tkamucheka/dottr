@@ -1,0 +1,1 @@
+test/cases/systems-outside-rhel.dotfile:4:1: error: `on rhel`: the manifest is for arch, debian
